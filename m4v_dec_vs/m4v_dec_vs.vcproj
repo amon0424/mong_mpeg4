@@ -170,12 +170,124 @@
 			Filter="cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx"
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
+			<File
+				RelativePath="..\src\bilinear8x8.c"
+				>
+			</File>
+			<File
+				RelativePath="..\src\bitstream.c"
+				>
+			</File>
+			<File
+				RelativePath="..\src\idct.c"
+				>
+			</File>
+			<File
+				RelativePath="..\src\image.c"
+				>
+			</File>
+			<File
+				RelativePath="..\src\m4v_dec.c"
+				>
+			</File>
+			<File
+				RelativePath="..\src\m4vdec_api.c"
+				>
+			</File>
+			<File
+				RelativePath="..\src\mbcoding.c"
+				>
+			</File>
+			<File
+				RelativePath="..\src\mbprediction.c"
+				>
+			</File>
+			<File
+				RelativePath="..\src\mem_align.c"
+				>
+			</File>
+			<File
+				RelativePath="..\src\mem_transfer.c"
+				>
+			</File>
+			<File
+				RelativePath="..\src\quant_h263.c"
+				>
+			</File>
+			<File
+				RelativePath="..\src\timer.c"
+				>
+			</File>
 		</Filter>
 		<Filter
 			Name="¼ÐÀYÀÉ"
 			Filter="h;hpp;hxx;hm;inl;inc;xsd"
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
+			<File
+				RelativePath="..\src\bilinear8x8.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\bitstream.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\global.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\idct.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\image.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\m4vdec_api.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\mbcoding.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\mbfunctions.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\mbprediction.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\mem_align.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\mem_transfer.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\metypes.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\quant_h263.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\timer.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\vlc_codes.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\zigzag.h"
+				>
+			</File>
 		</Filter>
 		<Filter
 			Name="¸ê·½ÀÉ"
