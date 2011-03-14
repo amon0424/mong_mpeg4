@@ -134,9 +134,6 @@ transfer8x8_copy(uint8 * const dst, const uint8 * const src,
 
     for (j = 0; j < 8; j++)
     {
-        for (i = 0; i < 8; i++)
-        {
-            dst[j * stride + i] = src[j * stride + i];
-        }
+		memcpy(dst + j * stride, src + j * stride, 8);
     }
 }
