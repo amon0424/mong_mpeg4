@@ -15,23 +15,21 @@ static int c6 = 0.1913417 * MULTIPLIER;
 static int c7 = 0.0975452 * MULTIPLIER;
 
 void
-idct(short *block1)
+idct(short *block_s)
 {
     short  j1, i, j;
-    //double tmp[8];
 	int tmp[8];
 
     int yy0, yy1, yy2, yy3, yy5, yy6;
     int e, f, g, h, coeff[8][8];
-    int  v;
+    int v;
 	int block[64];
 
     for (i = 0; i < 8; i++)
     {
         for (j = 0; j < 8; j++)
         {
-            //coeff[i][j] = (double) block[i * 8 + j];
-			block[i * 8 + j] = block1[i * 8 + j];
+			block[i * 8 + j] = block_s[i * 8 + j];
 			coeff[i][j] = block[i * 8 + j];
         }
     }
@@ -107,7 +105,6 @@ idct(short *block1)
     for (i = 0; i < 64; i++)
     {
 		v = (block[i] + HALF_MULTIPLIER) >> SHIFT;
-        block[i] = (v < -256) ? -256 : ((v > 255) ? 255 : v);
-		block1[i] = block[i];
+		block_s[i] = (v < -256) ? -256 : ((v > 255) ? 255 : v);
 	}
 }
