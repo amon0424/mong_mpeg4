@@ -38,26 +38,27 @@ halfpel8x8_h(uint8 * dst, uint8 * src, xint stride, xint rounding)
 void
 halfpel8x8_v(uint8 * dst, uint8 * src, xint stride, xint rounding)
 {
-    xint    row, col, idx, sum, idxPlusStride;
-	xint buffer[8];
+    xint    row, col, idx, sum;
+	xint lastIdxPlusStride,idxPlusStride;
 
     idx = 0;
+
 	for (col = 0; col < 8; col++)
-		buffer[col] = (xint)src[col];
-	
-    for (row = 0; row < (stride << 3); idx = (row += stride))
     {
-        for (col = 0; col < 8; col++, idx++)
-        {
+		idx = col;
+		lastIdxPlusStride = src[idx];
+		for (row = col; row < (stride << 3); idx = (row += stride))
+		{
 			idxPlusStride = (xint) src[idx + stride];
 
-            sum = buffer[col] + idxPlusStride + 1 - rounding;
+			sum = lastIdxPlusStride + idxPlusStride + 1 - rounding;
             dst[idx] = (uint8) (sum >> 1);
 
-			buffer[col] = idxPlusStride;
-        }
-    }
+			lastIdxPlusStride = idxPlusStride;
+		}
+	}
 }
+
 
 void
 halfpel8x8_hv(uint8 * dst, uint8 * src, xint stride, xint rounding)
