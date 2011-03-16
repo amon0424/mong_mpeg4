@@ -39,19 +39,26 @@ void
 halfpel8x8_v(uint8 * dst, uint8 * src, xint stride, xint rounding)
 {
     xint    row, col, idx, sum;
+	xint lastIdxPlusStride,idxPlusStride;
 
     idx = 0;
-    for (row = 0; row < (stride << 3); idx = (row += stride))
+
+	for (col = 0; col < 8; col++)
     {
-        for (col = 0; col < 8; col++, idx++)
-        {
-            sum =
-                (xint) src[idx] + (xint) src[idx + stride] + 1 -
-                rounding;
+		idx = col;
+		lastIdxPlusStride = src[idx];
+		for (row = col; row < (stride << 3); idx = (row += stride))
+		{
+			idxPlusStride = (xint) src[idx + stride];
+
+			sum = lastIdxPlusStride + idxPlusStride + 1 - rounding;
             dst[idx] = (uint8) (sum >> 1);
-        }
-    }
+
+			lastIdxPlusStride = idxPlusStride;
+		}
+	}
 }
+
 
 void
 halfpel8x8_hv(uint8 * dst, uint8 * src, xint stride, xint rounding)
