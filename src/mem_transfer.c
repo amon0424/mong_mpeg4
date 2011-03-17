@@ -105,24 +105,42 @@ void
 transfer_16to8add(uint8 * const dst, const int16 * const src,
                   xint stride)
 {
-    uint32  i, j;
+    uint32 j;
 
     for (j = 0; j < 8; j++)
     {
-        for (i = 0; i < 8; i++)
-        {
-            int16   pixel =
-                (int16) dst[j * stride + i] + src[j * 8 + i];
-            if (pixel < 0)
-            {
-                pixel = 0;
-            }
-            else if (pixel > 255)
-            {
-                pixel = 255;
-            }
-            dst[j * stride + i] = (uint8) pixel;
-        }
+		int16 pixel;
+		pixel = (int16) dst[j * stride] + src[j * 8];
+		pixel = (pixel < 0 ? 0 : (pixel > 255 ? 255 : pixel));
+        dst[j * stride + 0] = (uint8) pixel;
+
+		pixel = (int16) dst[j * stride + 1] + src[j * 8 + 1];
+		pixel = (pixel < 0 ? 0 : (pixel > 255 ? 255 : pixel));
+        dst[j * stride + 1] = (uint8) pixel;
+
+		pixel = (int16) dst[j * stride + 2] + src[j * 8 + 2];
+		pixel = (pixel < 0 ? 0 : (pixel > 255 ? 255 : pixel));
+        dst[j * stride + 2] = (uint8) pixel;
+
+		pixel = (int16) dst[j * stride + 3] + src[j * 8 + 3];
+		pixel = (pixel < 0 ? 0 : (pixel > 255 ? 255 : pixel));
+        dst[j * stride + 3] = (uint8) pixel;
+
+		pixel = (int16) dst[j * stride + 4] + src[j * 8 + 4];
+		pixel = (pixel < 0 ? 0 : (pixel > 255 ? 255 : pixel));
+        dst[j * stride + 4] = (uint8) pixel;
+
+		pixel = (int16) dst[j * stride + 5] + src[j * 8 + 5];
+		pixel = (pixel < 0 ? 0 : (pixel > 255 ? 255 : pixel));
+        dst[j * stride + 5] = (uint8) pixel;
+
+		pixel = (int16) dst[j * stride + 6] + src[j * 8 + 6];
+		pixel = (pixel < 0 ? 0 : (pixel > 255 ? 255 : pixel));
+        dst[j * stride + 6] = (uint8) pixel;
+
+		pixel = (int16) dst[j * stride + 7] + src[j * 8 + 6];
+		pixel = (pixel < 0 ? 0 : (pixel > 255 ? 255 : pixel));
+        dst[j * stride + 7] = (uint8) pixel;
     }
 }
 
