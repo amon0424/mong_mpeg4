@@ -51,24 +51,35 @@ halfpel8x8_h(uint8 * dst, uint8 * src, xint stride, xint rounding)
 void
 halfpel8x8_v(uint8 * dst, uint8 * src, xint stride, xint rounding)
 {
-    xint    row, col, idx, sum;
-	xint lastIdxPlusStride,idxPlusStride;
+    xint    row, idx, sum;
 
     idx = 0;
 
-	for (col = 0; col < 8; col++)
-    {
-		idx = col;
-		lastIdxPlusStride = src[idx];
-		for (row = col; row < (stride << 3); idx = (row += stride))
-		{
-			idxPlusStride = (xint) src[idx + stride];
+	for (row = 0; row < (stride << 3); idx = (row += stride))
+	{
+		sum = src[idx] + src[idx + stride] + 1 - rounding;
+		dst[idx++] = (uint8) (sum >> 1);
 
-			sum = lastIdxPlusStride + idxPlusStride + 1 - rounding;
-            dst[idx] = (uint8) (sum >> 1);
+		sum = src[idx] + src[idx + stride] + 1 - rounding;
+		dst[idx++] = (uint8) (sum >> 1);
 
-			lastIdxPlusStride = idxPlusStride;
-		}
+		sum = src[idx] + src[idx + stride] + 1 - rounding;
+		dst[idx++] = (uint8) (sum >> 1);
+
+		sum = src[idx] + src[idx + stride] + 1 - rounding;
+		dst[idx++] = (uint8) (sum >> 1);
+
+		sum = src[idx] + src[idx + stride] + 1 - rounding;
+		dst[idx++] = (uint8) (sum >> 1);
+
+		sum = src[idx] + src[idx + stride] + 1 - rounding;
+		dst[idx++] = (uint8) (sum >> 1);
+
+		sum = src[idx] + src[idx + stride] + 1 - rounding;
+		dst[idx++] = (uint8) (sum >> 1);
+
+		sum = src[idx] + src[idx + stride] + 1 - rounding;
+		dst[idx++] = (uint8) (sum >> 1);
 	}
 }
 
