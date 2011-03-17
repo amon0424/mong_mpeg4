@@ -51,14 +51,14 @@
 
 #include <stdio.h>
 #include "timer.h"
+#include "time.h"
 
 #if defined(_PROFILING_)
 
 static __inline int64
 read_counter()
 {
-    /* You must put a timer with millisecond accuracy here */
-    return 0;
+    return clock() * 1000 / CLOCKS_PER_SEC;
 }
 
 struct ts
