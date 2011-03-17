@@ -20,29 +20,47 @@ halfpel8x8_h(uint8 * dst, uint8 * src, xint stride, xint rounding)
     idx = 0;
     for (row = 0; row < (stride << 3); idx = (row += stride))
     {
-		sum = (xint)src[idx] + (xint) src[idx + 1] + 1 - rounding;
-		dst[idx++] = (uint8) (sum >> 1);
+		xint last_idx_1 = (xint)src[idx];
 
-		sum = (xint)src[idx] + (xint) src[idx + 1] + 1 - rounding;
+		xint idx_1 = (xint)src[idx + 1];
+		sum = last_idx_1 + idx_1 + 1 - rounding;
 		dst[idx++] = (uint8) (sum >> 1);
+		last_idx_1 = idx_1;
 
-		sum = (xint)src[idx] + (xint) src[idx + 1] + 1 - rounding;
+		idx_1 = (xint)src[idx + 1];
+		sum = last_idx_1 + idx_1 + 1 - rounding;
 		dst[idx++] = (uint8) (sum >> 1);
+		last_idx_1 = idx_1;
 
-		sum = (xint)src[idx] + (xint) src[idx + 1] + 1 - rounding;
+		idx_1 = (xint)src[idx + 1];
+		sum = last_idx_1 + idx_1 + 1 - rounding;
 		dst[idx++] = (uint8) (sum >> 1);
+		last_idx_1 = idx_1;
 
-		sum = (xint)src[idx] + (xint) src[idx + 1] + 1 - rounding;
+		idx_1 = (xint)src[idx + 1];
+		sum = last_idx_1 + idx_1 + 1 - rounding;
 		dst[idx++] = (uint8) (sum >> 1);
+		last_idx_1 = idx_1;
 
-		sum = (xint)src[idx] + (xint) src[idx + 1] + 1 - rounding;
+		idx_1 = (xint)src[idx + 1];
+		sum = last_idx_1 + idx_1 + 1 - rounding;
 		dst[idx++] = (uint8) (sum >> 1);
+		last_idx_1 = idx_1;
 
-		sum = (xint)src[idx] + (xint) src[idx + 1] + 1 - rounding;
+		idx_1 = (xint)src[idx + 1];
+		sum = last_idx_1 + idx_1 + 1 - rounding;
 		dst[idx++] = (uint8) (sum >> 1);
+		last_idx_1 = idx_1;
 
-		sum = (xint)src[idx] + (xint) src[idx + 1] + 1 - rounding;
+		idx_1 = (xint)src[idx + 1];
+		sum = last_idx_1 + idx_1 + 1 - rounding;
 		dst[idx++] = (uint8) (sum >> 1);
+		last_idx_1 = idx_1;
+
+		idx_1 = (xint)src[idx + 1];
+		sum = last_idx_1 + idx_1 + 1 - rounding;
+		dst[idx++] = (uint8) (sum >> 1);
+		last_idx_1 = idx_1;
     }
 }
 
