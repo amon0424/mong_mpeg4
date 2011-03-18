@@ -125,18 +125,21 @@ transfer_16to8add(uint8 * const dst, const int16 * const src,
         }
     }
 }
-
 void
 transfer8x8_copy(uint8 * const dst, const uint8 * const src,
                  xint stride)
 {
-    uint32  i, j;
-
+    uint32 j;
     for (j = 0; j < 8; j++)
     {
-        for (i = 0; i < 8; i++)
-        {
-            dst[j * stride + i] = src[j * stride + i];
-        }
+		int idx = j * stride;
+		dst[idx] = src[idx];
+		dst[idx + 1] = src[idx + 1];
+		dst[idx + 2] = src[idx + 2];
+		dst[idx + 3] = src[idx + 3];
+		dst[idx + 4] = src[idx + 4];
+		dst[idx + 5] = src[idx + 5];
+		dst[idx + 6] = src[idx + 6];
+		dst[idx + 7] = src[idx + 7];
     }
 }
