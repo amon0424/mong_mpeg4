@@ -1,8 +1,8 @@
 #include <string.h>
 #include <math.h>
-#define SHIFT 12
-#define MULTIPLIER 4096
-#define HALF_MULTIPLIER 2048
+#define SHIFT 11
+#define MULTIPLIER 2048
+#define HALF_MULTIPLIER 1024
 static int c0, c1, c2, c3, c4, c5, c6, c7;
 
 static int c0 = 0.7071068 * MULTIPLIER;
