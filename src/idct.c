@@ -25,23 +25,33 @@ idct(short *block_s)
     int v;
 	int block[64];
 
+	int rowIdx = 0;
     for (i = 0; i < 8; i++)
     {
-        for (j = 0; j < 8; j++)
-        {
-			block[i * 8 + j] = block_s[i * 8 + j];
-			coeff[i][j] = block[i * 8 + j];
-        }
+		coeff[i][0] = block[rowIdx] = block_s[rowIdx]; 
+		coeff[i][1] = block[rowIdx+1] = block_s[rowIdx+1];
+		coeff[i][2] = block[rowIdx+2] = block_s[rowIdx+2];
+		coeff[i][3] = block[rowIdx+3] = block_s[rowIdx+3];
+		coeff[i][4] = block[rowIdx+4] = block_s[rowIdx+4];
+		coeff[i][5] = block[rowIdx+5] = block_s[rowIdx+5];
+		coeff[i][6] = block[rowIdx+6] = block_s[rowIdx+6];
+		coeff[i][7] = block[rowIdx+7] = block_s[rowIdx+7];
+		rowIdx+=8;
     }
 
     /* Horizontal */
     /* Descan coefficients first */
     for (i = 0; i < 8; i++)
     {
-        for (j = 0; j < 8; j++)
-        {
-            tmp[j] = coeff[i][j];
-        }
+		tmp[0] = coeff[i][0];
+		tmp[1] = coeff[i][1];
+		tmp[2] = coeff[i][2];
+		tmp[3] = coeff[i][3];
+		tmp[4] = coeff[i][4];
+		tmp[5] = coeff[i][5];
+		tmp[6] = coeff[i][6];
+		tmp[7] = coeff[i][7];
+
         e = tmp[1] * c7 - tmp[7] * c1;
         h = tmp[7] * c7 + tmp[1] * c1;
         f = tmp[5] * c3 - tmp[3] * c5;
@@ -72,10 +82,15 @@ idct(short *block_s)
 
     for (i = 0; i < 8; i++)
     {
-        for (j = 0; j < 8; j++)
-        {
-            tmp[j] = block[(j<<3)+i];
-        }
+		tmp[0] = block[i];
+		tmp[1] = block[8+i];
+		tmp[2] = block[16+i];
+		tmp[3] = block[24+i];
+		tmp[4] = block[32+i];
+		tmp[5] = block[40+i];
+		tmp[6] = block[48+i];
+		tmp[7] = block[56+i];
+
         e = tmp[1] * c7 - tmp[7] * c1;
         h = tmp[7] * c7 + tmp[1] * c1;
         f = tmp[5] * c3 - tmp[3] * c5;
