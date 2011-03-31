@@ -51,14 +51,36 @@
 
 #include <stdio.h>
 #include "timer.h"
-#include "time.h"
+
+#include <cyg/kernel/kapi.h>
+#include <cyg/hal/hal_io.h>
 
 #if defined(_PROFILING_)
+
+#define TICKS_PER_MS 40000 /* 40 MHz per second / 1000 */
+
+/* The interrupt number can be obtained by typing 'info sys'  */
+/* command in GRMON and look for the Modular Timer Unit       */
+/* The IRQ value '8' displayed in 'info sys' is for the first */
+/* timer, which is used by eCos. We will use the 2nd timer.   */
+/* Therefore, the interrupt number is 9.                      */
+#define CYGNUM_HAL_INTERRUPT_TIMER2 (8+1)
+
+/* The base address of timer registers is again obtained by   */
+/* 'info sys'. The usage of the timer is described in detail  */
+/* in the GRLIB IP Core User's Manual.                        */
+#define TIMER_BASE           0x80000300
+#define SCALER_RELOAD_VALUE  TIMER_BASE + 0x04
+#define TIMER2_RELOAD_VALUE  TIMER_BASE + 0x24
+#define TIMER2_CTRL_REGISTER TIMER_BASE + 0x28
+
+long _counter;
+cyg_handle_t _timer;
 
 static __inline int64
 read_counter()
 {
-    return clock() * 1000 / CLOCKS_PER_SEC;
+    return _counter;
 }
 
 struct ts
@@ -78,17 +100,58 @@ struct ts
 
 struct ts t;
 
+cyg_uint32 isr(cyg_vector_t vector, cyg_addrword_t data)
+{
+	long *counter = (long *) data;
+
+    (*counter)++;
+    cyg_interrupt_acknowledge(vector);
+    return CYG_ISR_HANDLED;
+}
+
 // set everything to zero //
 void
 init_timer()
 {
     /* initialize timer counts */
     memset((void *) &t, 0, sizeof(t));
+
+	static cyg_interrupt isr_struct;
+    cyg_handle_t handle;
+    cyg_uint32   ctrl_reg, prescaler_value;
+
+    cyg_interrupt_create(CYGNUM_HAL_INTERRUPT_TIMER2,
+        0, &_counter, isr, NULL, &handle, &isr_struct);
+    cyg_interrupt_attach(handle);
+    cyg_interrupt_unmask(CYGNUM_HAL_INTERRUPT_TIMER2);
+
+    /* read the system default prescaler value */
+    HAL_READ_UINT32(SCALER_RELOAD_VALUE, prescaler_value);
+    if (prescaler_value == 0 ||         /* eCos did not set prescalar. */
+        prescaler_value > TICKS_PER_MS) /* clock resolution too low.   */
+    {
+        prescaler_value = 16;
+    }
+
+    /* initialize the timer to 1 ms per tick. For a 40MHz system */
+    /* clock, 40000/prescaler_value equals 1 ms.                 */
+    HAL_WRITE_UINT32(TIMER2_RELOAD_VALUE, TICKS_PER_MS/prescaler_value);
+
+    /* set the control register */
+    HAL_READ_UINT32(TIMER2_CTRL_REGISTER, ctrl_reg);
+    ctrl_reg |= 0xA; /* enable the interrupt */
+    ctrl_reg |= 0x1; /* start ticking */
+    HAL_WRITE_UINT32(TIMER2_CTRL_REGISTER, ctrl_reg);
+
+    _timer = handle;
 }
 
 void
 cleanup_timer()
 {
+	cyg_interrupt_mask(CYGNUM_HAL_INTERRUPT_TIMER2);
+    cyg_interrupt_detach(_timer);
+    cyg_interrupt_delete(_timer);
 }
 
 void
