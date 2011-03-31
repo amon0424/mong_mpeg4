@@ -20,11 +20,13 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <network.h>
+#include <tftp_support.h>
 #include "m4vdec_api.h"
 
 /* Input bitstream file name: this can only be used in */
 /*   semi-hosted operation mode.                       */
-char   *fname = "../../../bitstream/foreman_150.m4v";
+char   *fname = "./bitstream/foreman_150.m4v";
 
 FILE   *fp;                         /* Input file pointer      */
 uint8  *bitbuf;                     /* Input bitstream buffer  */
@@ -36,9 +38,11 @@ int
 main(int arc, char *arv[])
 {
     DEC_CTRL vdec_obj;
+	struct sockaddr_in host;
 
     xint    frame_number = 0, code;
     xint    frame_size = 0;
+	int err;
 
     /* allocating the data buffers */
     if ((bitbuf = (uint8 *) malloc(bitstream_size)) == NULL)
@@ -52,20 +56,22 @@ main(int arc, char *arv[])
         return 1;
     }
 
-    /* read video bitstream */
-    if ((fp = fopen(fname, "rb")) == NULL)
-    {
-        printf("Cannot open '%s'.\n", fname);
-        return 1;
-    }
-    bitstream_size = fread((void *) bitbuf, 1, bitstream_size, fp);
-    fclose(fp);
-    if (bitstream_size < 4)
-    {
-        printf("File read error.\n");
-        return 1;
-    }
+	/* initialize network interface */
+	init_all_network_interfaces();
+	memset((char *) &host, 0, sizeof(host));
+	host.sin_len = sizeof(host);
+	host.sin_family = AF_INET;
+	host.sin_addr = eth0_bootp_data.bp_siaddr;
+	host.sin_port = 0;
 
+    /* read video bitstream */
+	bitstream_size = tftp_get(fname, &host, bitbuf, bitstream_size, TFTP_OCTET, &err);
+	if (bitstream_size == -1)
+    {
+		printf("File read error. Error code:%d\n", err);
+        return 1;
+    }
+	
     /* decode video header to retrieve frame size (header < 64 bytes) */
     printf("Initializing decoder ...\n");
     if ((code = m4v_init_decoder(&vdec_obj, bitbuf, 64)) == 0)
@@ -105,19 +111,12 @@ main(int arc, char *arv[])
 
     /* write video bitstream */
     printf("\nWriting decoded YCbCr frames ...\n");
-    if ((fp = fopen("../../output.yuv", "wb")) == NULL)
+	bitstream_size = tftp_put("output.yuv", &host, yuvbuf, frame_size * frame_number, TFTP_OCTET, &err);
+	if (bitstream_size == -1)
     {
-        printf("Cannot write %s.\n", fname);
+		printf("File write error. Error code:%d\n", err);
         return 1;
     }
-
-    if (fwrite((void *) yuvbuf, frame_size, frame_number, fp) !=
-        frame_number)
-    {
-        printf("File write error.\n");
-        return 1;
-    }
-    fclose(fp);
 
     printf("Finished decoding.\n");
     return 0;
