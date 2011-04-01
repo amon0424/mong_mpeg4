@@ -23,7 +23,7 @@
 #include <network.h>
 #include <tftp_support.h>
 #include "m4vdec_api.h"
-
+#include "timer.h"
 /* Input bitstream file name: this can only be used in */
 /*   semi-hosted operation mode.                       */
 char   *fname = "./bitstream/foreman_150.m4v";
@@ -64,6 +64,8 @@ main(int arc, char *arv[])
 	host.sin_addr = eth0_bootp_data.bp_siaddr;
 	host.sin_port = 0;
 
+	printf("Reading bitstream using tftp...\n");
+
     /* read video bitstream */
 	bitstream_size = tftp_get(fname, &host, bitbuf, bitstream_size, TFTP_OCTET, &err);
 	if (bitstream_size == -1)
@@ -71,6 +73,7 @@ main(int arc, char *arv[])
 		printf("File read error. Error code:%d\n", err);
         return 1;
     }
+	printf("bitstream_size = %d, err = %d\n", bitstream_size, err);
 	
     /* decode video header to retrieve frame size (header < 64 bytes) */
     printf("Initializing decoder ...\n");
@@ -108,9 +111,9 @@ main(int arc, char *arv[])
     {
         printf("Cannot decode bitstream, code = %d.\n", code);
     }
-
+	
     /* write video bitstream */
-    printf("\nWriting decoded YCbCr frames ...\n");
+    printf("\nWriting decoded YCbCr frames using tftp...\n");
 	bitstream_size = tftp_put("output.yuv", &host, yuvbuf, frame_size * frame_number, TFTP_OCTET, &err);
 	if (bitstream_size == -1)
     {
