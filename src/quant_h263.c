@@ -87,16 +87,6 @@ dequant_intra(int16 * data, const int16 * coeff, const uint32 quant,
 /* dequantize inter-block & clamp to [-2048,2047]
 */
 
-#define SET_DATA(i) acLevel = coeff[i]; \
-		if (acLevel == 0) \
-        { data[i] = 0; } \
-        else if (acLevel < 0)\
-        {acLevel = acLevel * quant_m_2 - quant_add;\
-         data[i] = (acLevel >= -2048 ? acLevel : -2048);}\
-        else if (acLevel > 0)\
-        {acLevel = acLevel * quant_m_2 + quant_add;\
-         data[i] = (acLevel <= 2047 ? acLevel : 2047);}
-
 void
 dequant_inter(int16 * data, const int16 * coeff, const uint32 quant)
 {
@@ -104,16 +94,23 @@ dequant_inter(int16 * data, const int16 * coeff, const uint32 quant)
     const uint16 quant_add = (uint16) (quant & 1 ? quant : quant - 1);
     uint32  i;
 
-    for (i = 0; i < 64; i+=8)
+    for (i = 0; i < 64; i++)
     {
-		int acLevel;
-		SET_DATA(i);
-		SET_DATA(i+1);
-		SET_DATA(i+2);
-		SET_DATA(i+3);
-		SET_DATA(i+4);
-		SET_DATA(i+5);
-		SET_DATA(i+6);
-		SET_DATA(i+7);
+        int16   acLevel = coeff[i];
+
+        if (acLevel == 0)
+        {
+            data[i] = 0;
+        }
+        else if (acLevel < 0)
+        {
+            acLevel = acLevel * quant_m_2 - quant_add;
+            data[i] = (acLevel >= -2048 ? acLevel : -2048);
+        }
+        else                    // if (acLevel > 0)
+        {
+            acLevel = acLevel * quant_m_2 + quant_add;
+            data[i] = (acLevel <= 2047 ? acLevel : 2047);
+        }
     }
 }

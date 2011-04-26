@@ -50,10 +50,9 @@
   ******************************************************************************/
 
 #include <stdio.h>
-#include "timer.h"
-
 #include <cyg/kernel/kapi.h>
 #include <cyg/hal/hal_io.h>
+#include "timer.h"
 
 #if defined(_PROFILING_)
 
@@ -74,54 +73,28 @@
 #define TIMER2_RELOAD_VALUE  TIMER_BASE + 0x24
 #define TIMER2_CTRL_REGISTER TIMER_BASE + 0x28
 
-long _counter;
-cyg_handle_t _timer;
+static cyg_handle_t timer_handle;
+static long counter;
 
-static __inline int64
-read_counter()
+cyg_uint32
+my_isr(cyg_vector_t vector, cyg_addrword_t data)
 {
-    return _counter;
-}
-
-struct ts
-{
-    int64   current;
-    int64   global;
-    int64   overall;
-    int64   idct;
-    int64   iquant;
-    int64   comp;
-    int64   edges;
-    int64   conv;
-    int64   trans;
-    int64   prediction;
-    int64   coding;
-};
-
-struct ts t;
-
-cyg_uint32 isr(cyg_vector_t vector, cyg_addrword_t data)
-{
-	long *counter = (long *) data;
+    long *counter = (long *) data;
 
     (*counter)++;
     cyg_interrupt_acknowledge(vector);
     return CYG_ISR_HANDLED;
 }
 
-// set everything to zero //
-void
-init_timer()
+cyg_handle_t
+install_timer_isr(cyg_addrword_t data)
 {
-    /* initialize timer counts */
-    memset((void *) &t, 0, sizeof(t));
-
-	static cyg_interrupt isr_struct;
+    static cyg_interrupt isr_struct;
     cyg_handle_t handle;
     cyg_uint32   ctrl_reg, prescaler_value;
 
     cyg_interrupt_create(CYGNUM_HAL_INTERRUPT_TIMER2,
-        0, &_counter, isr, NULL, &handle, &isr_struct);
+        0, data, my_isr, NULL, &handle, &isr_struct);
     cyg_interrupt_attach(handle);
     cyg_interrupt_unmask(CYGNUM_HAL_INTERRUPT_TIMER2);
 
@@ -143,15 +116,60 @@ init_timer()
     ctrl_reg |= 0x1; /* start ticking */
     HAL_WRITE_UINT32(TIMER2_CTRL_REGISTER, ctrl_reg);
 
-    _timer = handle;
+    return handle;
+}
+
+void
+uninstall_timer_isr(cyg_handle_t handle)
+{
+    cyg_interrupt_mask(CYGNUM_HAL_INTERRUPT_TIMER2);
+    cyg_interrupt_detach(handle);
+    cyg_interrupt_delete(handle);
+}
+
+static __inline int64
+read_counter()
+{
+    /* For lab2, you should not use the clock() function to get */
+    /* time measurement. Instead, you must install a timer      */
+    /* interrupt handling routine to provide a clock with       */
+    /* millisecond accuracy.                                    */
+    return (int64) counter;
+}
+
+struct ts
+{
+    int64   current;
+    int64   global;
+    int64   overall;
+    int64   idct;
+    int64   iquant;
+    int64   comp;
+    int64   edges;
+    int64   conv;
+    int64   trans;
+    int64   prediction;
+    int64   coding;
+};
+
+struct ts t;
+
+// set everything to zero //
+void
+init_timer()
+{
+    /* install timer ISR */
+    counter = 0;
+    timer_handle = install_timer_isr((cyg_addrword_t) &counter);
+
+    /* initialize timer counts */
+    memset((void *) &t, 0, sizeof(t));
 }
 
 void
 cleanup_timer()
 {
-	cyg_interrupt_mask(CYGNUM_HAL_INTERRUPT_TIMER2);
-    cyg_interrupt_detach(_timer);
-    cyg_interrupt_delete(_timer);
+    uninstall_timer_isr(timer_handle);
 }
 
 void

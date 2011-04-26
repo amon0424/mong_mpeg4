@@ -23,26 +23,27 @@
 #include <network.h>
 #include <tftp_support.h>
 #include "m4vdec_api.h"
-#include "timer.h"
+
 /* Input bitstream file name: this can only be used in */
 /*   semi-hosted operation mode.                       */
-char   *fname = "./bitstream/foreman_150.m4v";
+char   *fname = "foreman_150.m4v";
 
-FILE   *fp;                         /* Input file pointer      */
-uint8  *bitbuf;                     /* Input bitstream buffer  */
-xint    bitstream_size = 83860;     /* bitstream size in bytes */
-uint8  *yuvbuf;                     /* output YCbCr images     */
-xint    raw_video_size = 5702400;   /* raw video size in bytes */
+FILE   *fp;                       /* Input file pointer      */
+uint8  *bitbuf;                   /* Input bitstream buffer  */
+xint    bitstream_size = 83860;   /* bitstream size in bytes */
+uint8  *yuvbuf;                   /* output YCbCr images     */
+xint    raw_video_size = 5702400; /* raw video size in bytes */
+
 
 int
 main(int arc, char *arv[])
 {
     DEC_CTRL vdec_obj;
-	struct sockaddr_in host;
+    struct sockaddr_in host;
 
-    xint    frame_number = 0, code;
-    xint    frame_size = 0;
-	int err;
+    xint err;
+    xint frame_number = 0, code;
+    xint frame_size = 0;
 
     /* allocating the data buffers */
     if ((bitbuf = (uint8 *) malloc(bitstream_size)) == NULL)
@@ -56,25 +57,30 @@ main(int arc, char *arv[])
         return 1;
     }
 
-	/* initialize network interface */
-	init_all_network_interfaces();
-	memset((char *) &host, 0, sizeof(host));
-	host.sin_len = sizeof(host);
-	host.sin_family = AF_INET;
-	host.sin_addr = eth0_bootp_data.bp_siaddr;
-	host.sin_port = 0;
-
-	printf("Reading bitstream using tftp...\n");
+    /* initialize network interface */
+    init_all_network_interfaces();
+    memset((char *) &host, 0, sizeof(host));
+    host.sin_len = sizeof(host);
+    host.sin_family = AF_INET;
+    host.sin_port = 0;
+#if 1 /* use host IP in eCos configuration */
+    host.sin_addr = eth0_bootp_data.bp_siaddr;
+#else /* assign host IP directly */
+    inet_aton("192.168.0.2", &(host.sin_addr));
+#endif
 
     /* read video bitstream */
-	bitstream_size = tftp_get(fname, &host, bitbuf, bitstream_size, TFTP_OCTET, &err);
-	if (bitstream_size == -1)
+    printf("\nReading bitstream using tftp...\n");
+    bitstream_size =
+        tftp_get(fname, &host, bitbuf, bitstream_size, TFTP_OCTET, &err);
+    printf("bitstream_size = %d, err = %d\n", bitstream_size, err);
+
+    if (bitstream_size < 4)
     {
-		printf("File read error. Error code:%d\n", err);
+        printf("File read error.\n");
         return 1;
     }
-	printf("bitstream_size = %d, err = %d\n", bitstream_size, err);
-	
+
     /* decode video header to retrieve frame size (header < 64 bytes) */
     printf("Initializing decoder ...\n");
     if ((code = m4v_init_decoder(&vdec_obj, bitbuf, 64)) == 0)
@@ -96,7 +102,7 @@ main(int arc, char *arv[])
             m4v_decode_frame(&vdec_obj);
             vdec_obj.image += frame_size;
             frame_number++;
-
+            
             /* Move the remaining bytes to the front of memory buffer.    */
             /* You should avoid pointer arithmetics for memory accesses   */
             /* due to portability issues across embedded processors.      */
@@ -111,15 +117,11 @@ main(int arc, char *arv[])
     {
         printf("Cannot decode bitstream, code = %d.\n", code);
     }
-	
+
     /* write video bitstream */
     printf("\nWriting decoded YCbCr frames using tftp...\n");
-	bitstream_size = tftp_put("output.yuv", &host, yuvbuf, frame_size * frame_number, TFTP_OCTET, &err);
-	if (bitstream_size == -1)
-    {
-		printf("File write error. Error code:%d\n", err);
-        return 1;
-    }
+    (void) tftp_put("output.yuv", &host, yuvbuf,
+                    frame_number*frame_size, TFTP_OCTET, &err);
 
     printf("Finished decoding.\n");
     return 0;
