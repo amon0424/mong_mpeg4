@@ -30,3 +30,6 @@ _ReSharper*/
 *.yuv
 m4v_dec_Data*/
 *.o
+*.elf
+*.mcp
+*.srec
