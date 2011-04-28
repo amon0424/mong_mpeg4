@@ -2,11 +2,11 @@
 <VisualStudioProject
 	ProjectType="Visual C++"
 	Version="9.00"
-	Name="m4v_dec_vs"
-	ProjectGUID="{CD86F068-21FE-4554-81C1-CFAEDB7E428D}"
-	RootNamespace="m4v_dec_vs"
+	Name="testbench"
+	ProjectGUID="{129E3E7C-D54C-4E05-97AF-F309CA04785C}"
+	RootNamespace="testbench"
 	Keyword="Win32Proj"
-	TargetFrameworkVersion="196608"
+	TargetFrameworkVersion="196613"
 	>
 	<Platforms>
 		<Platform
@@ -41,7 +41,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE;_PROFILING_"
+				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
@@ -171,51 +171,7 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
-				RelativePath="..\src\bilinear8x8.c"
-				>
-			</File>
-			<File
-				RelativePath="..\src\bitstream.c"
-				>
-			</File>
-			<File
-				RelativePath="..\src\idct.c"
-				>
-			</File>
-			<File
-				RelativePath="..\src\image.c"
-				>
-			</File>
-			<File
-				RelativePath="..\src\m4v_dec.c"
-				>
-			</File>
-			<File
-				RelativePath="..\src\m4vdec_api.c"
-				>
-			</File>
-			<File
-				RelativePath="..\src\mbcoding.c"
-				>
-			</File>
-			<File
-				RelativePath="..\src\mbprediction.c"
-				>
-			</File>
-			<File
-				RelativePath="..\src\mem_align.c"
-				>
-			</File>
-			<File
-				RelativePath="..\src\mem_transfer.c"
-				>
-			</File>
-			<File
-				RelativePath="..\src\quant_h263.c"
-				>
-			</File>
-			<File
-				RelativePath="..\src\timer.c"
+				RelativePath="..\mcomp_tb.c"
 				>
 			</File>
 		</Filter>
@@ -224,70 +180,6 @@
 			Filter="h;hpp;hxx;hm;inl;inc;xsd"
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
-			<File
-				RelativePath="..\src\bilinear8x8.h"
-				>
-			</File>
-			<File
-				RelativePath="..\src\bitstream.h"
-				>
-			</File>
-			<File
-				RelativePath="..\src\global.h"
-				>
-			</File>
-			<File
-				RelativePath="..\src\idct.h"
-				>
-			</File>
-			<File
-				RelativePath="..\src\image.h"
-				>
-			</File>
-			<File
-				RelativePath="..\src\m4vdec_api.h"
-				>
-			</File>
-			<File
-				RelativePath="..\src\mbcoding.h"
-				>
-			</File>
-			<File
-				RelativePath="..\src\mbfunctions.h"
-				>
-			</File>
-			<File
-				RelativePath="..\src\mbprediction.h"
-				>
-			</File>
-			<File
-				RelativePath="..\src\mem_align.h"
-				>
-			</File>
-			<File
-				RelativePath="..\src\mem_transfer.h"
-				>
-			</File>
-			<File
-				RelativePath="..\src\metypes.h"
-				>
-			</File>
-			<File
-				RelativePath="..\src\quant_h263.h"
-				>
-			</File>
-			<File
-				RelativePath="..\src\timer.h"
-				>
-			</File>
-			<File
-				RelativePath="..\src\vlc_codes.h"
-				>
-			</File>
-			<File
-				RelativePath="..\src\zigzag.h"
-				>
-			</File>
 		</Filter>
 		<Filter
 			Name="¸ê·½ÀÉ"
