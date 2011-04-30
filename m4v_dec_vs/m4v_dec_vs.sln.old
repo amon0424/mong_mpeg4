@@ -1,9 +1,9 @@
 ﻿
-Microsoft Visual Studio Solution File, Format Version 11.00
-# Visual Studio 2010
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "m4v_dec_vs", "m4v_dec_vs.vcxproj", "{CD86F068-21FE-4554-81C1-CFAEDB7E428D}"
+Microsoft Visual Studio Solution File, Format Version 10.00
+# Visual Studio 2008
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "m4v_dec_vs", "m4v_dec_vs.vcproj", "{CD86F068-21FE-4554-81C1-CFAEDB7E428D}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "testbench", "..\testbench\testbench\testbench.vcxproj", "{129E3E7C-D54C-4E05-97AF-F309CA04785C}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "testbench", "..\testbench\testbench\testbench.vcproj", "{129E3E7C-D54C-4E05-97AF-F309CA04785C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

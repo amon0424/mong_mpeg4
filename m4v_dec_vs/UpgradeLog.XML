@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet type='text/xsl' href='_UpgradeReport_Files/UpgradeReport.xslt'?><UpgradeLog>
+<Properties><Property Name="Solution" Value="m4v_dec_vs">
+</Property><Property Name="方案檔" Value="C:\CoDesign\9957520\m4v_dec_ecos\m4v_dec_vs\m4v_dec_vs.sln">
+</Property><Property Name="使用者選項檔" Value="C:\CoDesign\9957520\m4v_dec_ecos\m4v_dec_vs\m4v_dec_vs.suo">
+</Property><Property Name="Date" Value="2011年5月1日">
+</Property><Property Name="Time" Value="上午 01:17">
+</Property></Properties><Event ErrorLevel="0" Project="" Source="m4v_dec_vs.sln" Description="檔案已成功備份為 C:\CoDesign\9957520\m4v_dec_ecos\m4v_dec_vs\m4v_dec_vs.sln.old">
+</Event><Event ErrorLevel="0" Project="" Source="m4v_dec_vs.suo" Description="檔案已成功備份為 C:\CoDesign\9957520\m4v_dec_ecos\m4v_dec_vs\m4v_dec_vs.suo.old">
+</Event><Event ErrorLevel="0" Project="m4v_dec_vs" Source="m4v_dec_vs.vcproj" Description="Converting project file 'C:\CoDesign\9957520\m4v_dec_ecos\m4v_dec_vs\m4v_dec_vs.vcproj'.">
+</Event><Event ErrorLevel="1" Project="m4v_dec_vs" Source="m4v_dec_vs.vcproj" Description="VCWebServiceProxyGeneratorTool is no longer supported. The tool has been removed from your project settings.">
+</Event><Event ErrorLevel="0" Project="m4v_dec_vs" Source="m4v_dec_vs.vcproj" Description="Done converting to new project file 'C:\CoDesign\9957520\m4v_dec_ecos\m4v_dec_vs\m4v_dec_vs.vcxproj'.">
+</Event><Event ErrorLevel="3" Project="m4v_dec_vs" Source="m4v_dec_vs.vcproj" Description="Converted">
+</Event><Event ErrorLevel="0" Project="testbench" Source="..\testbench\testbench\testbench.vcproj" Description="Converting project file 'C:\CoDesign\9957520\m4v_dec_ecos\testbench\testbench\testbench.vcproj'.">
+</Event><Event ErrorLevel="1" Project="testbench" Source="..\testbench\testbench\testbench.vcproj" Description="VCConvertEngine could not convert attribute CompileAsManaged =  under Tool VCNMakeTool.">
+</Event><Event ErrorLevel="1" Project="testbench" Source="..\testbench\testbench\testbench.vcproj" Description="VCWebServiceProxyGeneratorTool is no longer supported. The tool has been removed from your project settings.">
+</Event><Event ErrorLevel="1" Project="testbench" Source="..\testbench\testbench\testbench.vcproj" Description="Unable to upgrade the file '..\mcomp_tb.c' default tool.">
+</Event><Event ErrorLevel="0" Project="testbench" Source="..\testbench\testbench\testbench.vcproj" Description="Done converting to new project file 'C:\CoDesign\9957520\m4v_dec_ecos\testbench\testbench\testbench.vcxproj'.">
+</Event><Event ErrorLevel="3" Project="testbench" Source="..\testbench\testbench\testbench.vcproj" Description="Converted">
+</Event><Event ErrorLevel="0" Project="" Source="m4v_dec_vs.sln" Description="方案轉換成功">
+</Event><Event ErrorLevel="3" Project="" Source="m4v_dec_vs.sln" Description="Converted">
+</Event></UpgradeLog>
