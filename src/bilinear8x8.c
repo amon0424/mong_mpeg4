@@ -31,20 +31,64 @@ halfpel8x8_h(uint8 * dst, uint8 * src, xint stride, xint rounding)
     xint    row, col, idx;
 
     idx = 0;
+#if USE_HW_MC
+	*reg_r = (xint) rounding;	
+#endif
     for (row = 0; row < (stride << 3); idx = (row += stride))
     {
-        for (col = 0; col < 8; col++, idx++)
-        {
 #if USE_HW_MC
-            *reg_a = (xint) src[idx];
-            *reg_b = (xint) src[idx+1];
-            *reg_r = (xint) rounding;
-            dst[idx] = (uint8) (*mc_2pt);
+            //*reg_a = (xint) src[idx];
+            //*reg_b = (xint) src[idx+1];
+            //dst[idx++] = (uint8) (*mc_2pt);
+
+			xint last_idx_1 = (xint)src[idx];
+
+			xint idx_1 = (xint)src[idx + 1];
+			*reg_a = (xint) last_idx_1;
+            *reg_b = last_idx_1 = (xint) idx_1;
+			dst[idx++] = (uint8) (*mc_2pt);
+
+			idx_1 = (xint)src[idx + 1];
+			*reg_a = (xint) last_idx_1;
+            *reg_b = last_idx_1 = (xint) idx_1;
+			dst[idx++] = (uint8) (*mc_2pt);
+
+			idx_1 = (xint)src[idx + 1];
+			*reg_a = (xint) last_idx_1;
+            *reg_b = last_idx_1 = (xint) idx_1;
+			dst[idx++] = (uint8) (*mc_2pt);
+
+			idx_1 = (xint)src[idx + 1];
+			*reg_a = (xint) last_idx_1;
+            *reg_b = last_idx_1 = (xint) idx_1;
+			dst[idx++] = (uint8) (*mc_2pt);
+
+			idx_1 = (xint)src[idx + 1];
+			*reg_a = (xint) last_idx_1;
+            *reg_b = last_idx_1 = (xint) idx_1;
+			dst[idx++] = (uint8) (*mc_2pt);
+
+			idx_1 = (xint)src[idx + 1];
+			*reg_a = (xint) last_idx_1;
+            *reg_b = last_idx_1 = (xint) idx_1;
+			dst[idx++] = (uint8) (*mc_2pt);
+
+			idx_1 = (xint)src[idx + 1];
+			*reg_a = (xint) last_idx_1;
+            *reg_b = last_idx_1 = (xint) idx_1;
+			dst[idx++] = (uint8) (*mc_2pt);
+
+			idx_1 = (xint)src[idx + 1];
+			*reg_a = (xint) last_idx_1;
+            *reg_b = last_idx_1 = (xint) idx_1;
+			dst[idx++] = (uint8) (*mc_2pt);
 #else
+		for(col=0; col<8; col++, idx++)
+		{
             xint sum = (xint) src[idx] + src[idx + 1] + 1 - rounding;
             dst[idx] = (uint8) (sum >> 1);
+		}
 #endif
-        }
     }
 }
 
@@ -54,20 +98,50 @@ halfpel8x8_v(uint8 * dst, uint8 * src, xint stride, xint rounding)
     xint    row, col, idx;
 
     idx = 0;
+#if HW_MC
+	*reg_r = (xint) rounding;	
+#endif
     for (row = 0; row < (stride << 3); idx = (row += stride))
     {
-        for (col = 0; col < 8; col++, idx++)
-        {
 #if HW_MC
             *reg_a = (xint) src[idx];
             *reg_b = (xint) src[idx+stride];
-            *reg_r = (xint) rounding;
-            dst[idx] = (uint8) (*mc_2pt);
+            dst[idx++] = (uint8) (*mc_2pt);
+
+			*reg_a = (xint) src[idx];
+            *reg_b = (xint) src[idx+stride];
+            dst[idx++] = (uint8) (*mc_2pt);
+
+			*reg_a = (xint) src[idx];
+            *reg_b = (xint) src[idx+stride];
+            dst[idx++] = (uint8) (*mc_2pt);
+
+			*reg_a = (xint) src[idx];
+            *reg_b = (xint) src[idx+stride];
+            dst[idx++] = (uint8) (*mc_2pt);
+
+			*reg_a = (xint) src[idx];
+            *reg_b = (xint) src[idx+stride];
+            dst[idx++] = (uint8) (*mc_2pt);
+
+			*reg_a = (xint) src[idx];
+            *reg_b = (xint) src[idx+stride];
+            dst[idx++] = (uint8) (*mc_2pt);
+
+			*reg_a = (xint) src[idx];
+            *reg_b = (xint) src[idx+stride];
+            dst[idx++] = (uint8) (*mc_2pt);
+
+			*reg_a = (xint) src[idx];
+            *reg_b = (xint) src[idx+stride];
+            dst[idx++] = (uint8) (*mc_2pt);
 #else
+		for (col = 0; col < 8; col++, idx++)
+        {
             xint sum = (xint) src[idx] + src[idx + stride] + 1 - rounding;
             dst[idx] = (uint8) (sum >> 1);
+		}
 #endif
-        }
     }
 }
 
@@ -77,22 +151,93 @@ halfpel8x8_hv(uint8 * dst, uint8 * src, xint stride, xint rounding)
     xint    row, col, idx;
 
     idx = 0;
+#if USE_HW_MC
+	*reg_r = (xint) rounding;	
+#endif
     for (row = 0; row < (stride << 3); idx = (row += stride))
     {
-        for (col = 0; col < 8; col++, idx++)
-        {
 #if USE_HW_MC
-            *reg_a = (xint) src[idx];
+ /*           *reg_a = (xint) src[idx];
             *reg_b = (xint) src[idx+1];
             *reg_c = (xint) src[idx+stride];
             *reg_d = (xint) src[idx+stride+1];
             *reg_r = (xint) rounding;
-            dst[idx] = (uint8) (*mc_4pt);
+            dst[idx] = (uint8) (*mc_4pt);*/
+
+			xint last_idx_1 = (xint)src[idx];
+			xint last_idx_stride_1 = (xint)src[idx + stride];
+
+			xint idx_1 = (xint)src[idx + 1];
+			xint idx_stride_1 = (xint)src[idx + stride + 1];
+			*reg_a = (xint) last_idx_1;
+            *reg_b = last_idx_1 = (xint) idx_1;
+            *reg_c = (xint) last_idx_stride_1;
+            *reg_d = last_idx_stride_1 = (xint) idx_stride_1;
+			dst[idx++] = (uint8) (*mc_4pt);
+
+			idx_1 = (xint)src[idx + 1];
+			idx_stride_1 = (xint)src[idx + stride + 1];
+			*reg_a = (xint) last_idx_1;
+            *reg_b = last_idx_1 = (xint) idx_1;
+            *reg_c = (xint) last_idx_stride_1;
+            *reg_d = last_idx_stride_1 = (xint) idx_stride_1;
+			dst[idx++] = (uint8) (*mc_4pt);
+
+			idx_1 = (xint)src[idx + 1];
+			idx_stride_1 = (xint)src[idx + stride + 1];
+			*reg_a = (xint) last_idx_1;
+            *reg_b = last_idx_1 = (xint) idx_1;
+            *reg_c = (xint) last_idx_stride_1;
+            *reg_d = last_idx_stride_1 = (xint) idx_stride_1;
+			dst[idx++] = (uint8) (*mc_4pt);
+
+			idx_1 = (xint)src[idx + 1];
+			idx_stride_1 = (xint)src[idx + stride + 1];
+			*reg_a = (xint) last_idx_1;
+            *reg_b = last_idx_1 = (xint) idx_1;
+            *reg_c = (xint) last_idx_stride_1;
+            *reg_d = last_idx_stride_1 = (xint) idx_stride_1;
+			dst[idx++] = (uint8) (*mc_4pt);
+
+			idx_1 = (xint)src[idx + 1];
+			idx_stride_1 = (xint)src[idx + stride + 1];
+			*reg_a = (xint) last_idx_1;
+            *reg_b = last_idx_1 = (xint) idx_1;
+            *reg_c = (xint) last_idx_stride_1;
+            *reg_d = last_idx_stride_1 = (xint) idx_stride_1;
+			dst[idx++] = (uint8) (*mc_4pt);
+
+			idx_1 = (xint)src[idx + 1];
+			idx_stride_1 = (xint)src[idx + stride + 1];
+			*reg_a = (xint) last_idx_1;
+            *reg_b = last_idx_1 = (xint) idx_1;
+            *reg_c = (xint) last_idx_stride_1;
+            *reg_d = last_idx_stride_1 = (xint) idx_stride_1;
+			dst[idx++] = (uint8) (*mc_4pt);
+
+			idx_1 = (xint)src[idx + 1];
+			idx_stride_1 = (xint)src[idx + stride + 1];
+			*reg_a = (xint) last_idx_1;
+            *reg_b = last_idx_1 = (xint) idx_1;
+            *reg_c = (xint) last_idx_stride_1;
+            *reg_d = last_idx_stride_1 = (xint) idx_stride_1;
+			dst[idx++] = (uint8) (*mc_4pt);
+
+			idx_1 = (xint)src[idx + 1];
+			idx_stride_1 = (xint)src[idx + stride + 1];
+			*reg_a = (xint) last_idx_1;
+            *reg_b = last_idx_1 = (xint) idx_1;
+            *reg_c = (xint) last_idx_stride_1;
+            *reg_d = last_idx_stride_1 = (xint) idx_stride_1;
+			dst[idx++] = (uint8) (*mc_4pt);
+
 #else
+		for(col=0; col<8; col++, idx++)
+		{
             xint sum = (xint) src[idx] + (xint) src[idx + 1] +
                 (xint) src[idx + stride] + (xint) src[idx + stride + 1];
             dst[idx] = (uint8) ((sum + 2 - rounding) >> 2);
+		}
 #endif
-        }
     }
 }
