@@ -50,15 +50,12 @@ constant hconfig : ahb_config_type := (
 	others => X"00000000"
 );
 type block_9x9 is array (0 to 80) of std_logic_vector(7 downto 0);
-signal reg_a : std_logic_vector(31 downto 0);	-- pixel value 1
-signal reg_b : std_logic_vector(31 downto 0);	-- pixel value 2
-signal reg_c : std_logic_vector(31 downto 0);	-- pixel value 3
-signal reg_d : std_logic_vector(31 downto 0);	-- pixel value 4
 signal reg_r : std_logic_vector(31 downto 0);	-- rounding value
 signal valid : std_logic; -- is the logic selected by a master
 signal reg_mode : std_logic; -- 0 for 2-point interpolation, 1 for 4-point
 signal temp_addr : std_logic_vector(31 downto 0);
 signal pixel: block_9x9;
+signal pixel_index: integer range 0 to 80;
 
 -- pragma translate_off
 -- The following signals are used for GHDL simulation, you don't
@@ -106,10 +103,15 @@ begin
 		if rst = '0' then
 			temp_addr <= (others => '0');
 			valid <= '0';
+			pixel_index <= 0;
 		elsif rising_edge(clk) then
 			if (ahbsi.hsel(ahbndx) and ahbsi.htrans(1) and
 				ahbsi.hready and ahbsi.hwrite) = '1' then
 				temp_addr <= ahbsi.haddr;
+				pixel_index = conv_integer(temp_addr(8 downto 2));
+				valid <= '1';
+			elsif(ahbsi.hsel(ahbndx) = '1' and ahbsi.hwrite = '0') then
+				pixel_index = conv_integer(temp_addr(8 downto 2));
 				valid <= '1';
 			else
 				valid <= '0';
@@ -118,18 +120,12 @@ begin
 	end process;
 
 	write_process : process (clk, rst)
-	variable pixel_index : integer;
 	begin
 		if rst = '0' then
-			reg_a <= (others => '0');
-			reg_b <= (others => '0');
-			reg_c <= (others => '0');
-			reg_d <= (others => '0');
 			reg_r <= (others => '0');
 			reg_mode <= '0';
 		elsif rising_edge(clk) then
 			if valid = '1' then
-				pixel_index := conv_integer(temp_addr(8 downto 2));
 				if( pixel_index >= 0 and pixel_index <= 80) then
 					pixel(pixel_index) <= ahbsi.hwdata(7 downto 0);
 				elsif(pixel_index = 81) then
@@ -143,13 +139,11 @@ begin
 
 	read_process : process (clk, rst)
 	variable shift : std_logic_vector(31 downto 0);
-	variable pixel_index : integer;
 	begin
 		if rst = '0' then
 			ahbso.hrdata	<= (others => '0');
 		elsif rising_edge(clk) then
-			if (ahbsi.hsel(ahbndx) and ahbsi.hready) = '1' then
-				pixel_index := conv_integer(ahbsi.haddr(8 downto 2));
+			if (ahbsi.hsel(ahbndx) and ahbsi.hready and valid) = '1' then
 				if( pixel_index >= 0 and pixel_index <= 80) then		--pixel value
 					if reg_mode = '0' then	--2-point interpolation
 						shift := ((31 downto 8 => '0') & pixel(pixel_index)) + pixel(pixel_index+1) + 1 - reg_r;
