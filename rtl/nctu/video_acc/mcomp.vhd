@@ -108,10 +108,10 @@ begin
 			if (ahbsi.hsel(ahbndx) and ahbsi.htrans(1) and
 				ahbsi.hready and ahbsi.hwrite) = '1' then
 				temp_addr <= ahbsi.haddr;
-				pixel_index = conv_integer(temp_addr(8 downto 2));
+				pixel_index <= conv_integer(temp_addr(8 downto 2));
 				valid <= '1';
 			elsif(ahbsi.hsel(ahbndx) = '1' and ahbsi.hwrite = '0') then
-				pixel_index = conv_integer(temp_addr(8 downto 2));
+				pixel_index <= conv_integer(temp_addr(8 downto 2));
 				valid <= '1';
 			else
 				valid <= '0';
