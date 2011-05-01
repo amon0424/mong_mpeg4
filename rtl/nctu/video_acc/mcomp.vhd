@@ -56,10 +56,9 @@ signal reg_c : std_logic_vector(31 downto 0);	-- pixel value 3
 signal reg_d : std_logic_vector(31 downto 0);	-- pixel value 4
 signal reg_r : std_logic_vector(31 downto 0);	-- rounding value
 signal valid : std_logic; -- is the logic selected by a master
+signal reg_mode : std_logic; -- 0 for 2-point interpolation, 1 for 4-point
 signal temp_addr : std_logic_vector(31 downto 0);
 signal pixel: block_9x9;
-signal mode : std_logic; -- 0 for 2-point interpolation, 1 for 4-point
-signal pixel_v : std_logic_vector(7 downto 0);
 
 -- pragma translate_off
 -- The following signals are used for GHDL simulation, you don't
@@ -69,7 +68,6 @@ signal haddr	 : std_logic_vector(31 downto 0);		-- address bus (byte)
 signal hwrite	: std_ulogic;											 -- read/write
 signal hwdata	: std_logic_vector(31 downto 0);		-- write data bus
 signal hiready : std_ulogic;											 -- transfer done
-signal htrans : std_logic_vector(1 downto 0);
 -- pragma translate_on
 
 begin
@@ -79,7 +77,7 @@ begin
 	ahbso.hcache	<= '0';
 	ahbso.hconfig	<= hconfig;
 	ahbso.hindex	<= ahbndx;
-	mode			<= '0';
+	
 	
 -- pragma translate_off
 -- The following signals are used for GHDL simulation, you don't
@@ -89,7 +87,6 @@ begin
 	hwrite	<= ahbsi.hwrite;
 	hwdata	<= ahbsi.hwdata;
 	hiready	<= ahbsi.hready; 
-	htrans	<= ahbsi.htrans;
 -- pragma translate_on
 
 	ready_ctrl : process (clk, rst)
@@ -122,7 +119,6 @@ begin
 
 	write_process : process (clk, rst)
 	variable pixel_index : integer;
-	variable shift : std_logic_vector(31 downto 0);
 	begin
 		if rst = '0' then
 			reg_a <= (others => '0');
@@ -130,28 +126,16 @@ begin
 			reg_c <= (others => '0');
 			reg_d <= (others => '0');
 			reg_r <= (others => '0');
-			pixel_v <= (others => '0');
+			reg_mode <= '0';
 		elsif rising_edge(clk) then
 			if valid = '1' then
 				pixel_index := conv_integer(temp_addr(8 downto 2));
-				if( pixel_index >= 0 and pixel_index < 80) then
+				if( pixel_index >= 0 and pixel_index <= 80) then
 					pixel(pixel_index) <= ahbsi.hwdata(7 downto 0);
-					pixel_v <= ahbsi.hwdata(7 downto 0);
-				elsif(pixel_index = 80) then
-					reg_r <= ahbsi.hwdata;
 				elsif(pixel_index = 81) then
-					mode <= ahbsi.hwdata(0);
-				elsif(pixel_index = 82 and ahbsi.hwdata(0)='1') then -- begin 2-point interpolation
-					pixel_v(3 downto 0) <= "1111";
-					shift := ((31 downto 8 => '0') & pixel(0)) + pixel(1) + 1 - reg_r;
-					pixel(0) <= shift(8 downto 1);
-					shift := ((31 downto 8 => '0') & pixel(1)) + pixel(2) + 1 - reg_r;
-					pixel(1) <= shift(8 downto 1);
-				elsif(pixel_index = 83 and ahbsi.hwdata(0)='1') then -- begin 4-point interpolation
-					shift := ((31 downto 8 => '0') & pixel(0)) +  pixel(1) + pixel(2) + pixel(3) + 2 - reg_r;
-					pixel(0) <= shift(9 downto 2);
-					shift := ((31 downto 8 => '0') & pixel(2)) +  pixel(4) + pixel(4) + pixel(5) + 2 - reg_r;
-					pixel(1) <= shift(9 downto 2);
+					reg_r <= ahbsi.hwdata;
+				elsif(pixel_index = 82) then
+					reg_mode <= ahbsi.hwdata(0);
 				end if;
 			end if;
 		end if;
@@ -162,27 +146,18 @@ begin
 	variable pixel_index : integer;
 	begin
 		if rst = '0' then
-			ahbso.hrdata <= (others => '0');
+			ahbso.hrdata	<= (others => '0');
 		elsif rising_edge(clk) then
 			if (ahbsi.hsel(ahbndx) and ahbsi.hready) = '1' then
 				pixel_index := conv_integer(ahbsi.haddr(8 downto 2));
-				if( pixel_index >= 0 and pixel_index < 64) then		--pixel value
-					case mode is
-					when '0' =>	--2-point interpolation
+				if( pixel_index >= 0 and pixel_index <= 80) then		--pixel value
+					if reg_mode = '0' then	--2-point interpolation
 						shift := ((31 downto 8 => '0') & pixel(pixel_index)) + pixel(pixel_index+1) + 1 - reg_r;
 						ahbso.hrdata <= ('0' & shift(31 downto 1));
-					when '1' =>	--4-point interpolation
+					elsif reg_mode = '1' then	--4-point interpolation
 						shift := ((31 downto 8 => '0') & pixel(pixel_index)) +  pixel(pixel_index+1) + pixel(pixel_index+8) + pixel(pixel_index+9) + 2 - reg_r;
 						ahbso.hrdata <= ("00" & shift(31 downto 2));
-					when others =>
-						null;
-					end case;
-				elsif( ahbsi.haddr(8 downto 2) = "1010001") then		--2-point interpolation
-					shift := ((31 downto 8 => '0') & pixel(0)) + pixel(1) + 1 - reg_r;
-					ahbso.hrdata <= ('0' & shift(31 downto 1));
-				elsif( ahbsi.haddr(8 downto 2) = "1010010") then	--4-point interpolation
-					shift := ((31 downto 8 => '0') & pixel(0)) +  pixel(1) + pixel(2) + pixel(3) + 2 - reg_r;
-					ahbso.hrdata <= ("00" & shift(31 downto 2));
+					end if;
 				else
 					ahbso.hrdata <= (others => '0');
 				end if;

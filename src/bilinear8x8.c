@@ -21,10 +21,10 @@ volatile int *reg_a  = (int *) 0xb0000000;
 volatile int *reg_b  = (int *) 0xb0000004;
 volatile int *reg_c  = (int *) 0xb0000008;
 volatile int *reg_d  = (int *) 0xb000000c;
-volatile int *reg_r  = (int *) 0xb0000010;
-volatile int *reg_mode = (int *) 0xb0000144;
-volatile int *mc_2pt = (int *) 0xb0000148;
-volatile int *mc_4pt = (int *) 0xb000014c;
+volatile int *reg_r  = (int *) 0xb0000144;
+volatile int *reg_mode = (int *) 0xb0000148;
+volatile int *mc_2pt = (int *) 0xb000014C;
+volatile int *mc_4pt = (int *) 0xb0000150;
 #endif
 
 void
@@ -33,12 +33,12 @@ halfpel8x8_h(uint8 * dst, uint8 * src, xint stride, xint rounding)
     xint    row, col, idx;
 
     idx = 0;
-#if USE_HW_MC
+#if HW_MC
 	*reg_r = (xint) rounding;	
 #endif
     for (row = 0; row < (stride << 3); idx = (row += stride))
     {
-#if USE_HW_MC
+#if HW_MC
             //*reg_a = (xint) src[idx];
             //*reg_b = (xint) src[idx+1];
             //dst[idx++] = (uint8) (*mc_2pt);
@@ -173,6 +173,9 @@ halfpel8x8_hv(uint8 * dst, uint8 * src, xint stride, xint rounding)
 			*(ppixels++) = src[idx++];
 			*(ppixels++) = src[idx++];
 			*(ppixels++) = src[idx++];
+			// additional
+			*(ppixels++) = src[idx++];
+
 		}
 		*reg_r = (xint) rounding;
 		*reg_mode = 1;
@@ -189,6 +192,8 @@ halfpel8x8_hv(uint8 * dst, uint8 * src, xint stride, xint rounding)
 			dst[idx++] = *(ppixels++);
 			dst[idx++] = *(ppixels++);
 			dst[idx++] = *(ppixels++);
+			// skip additional pixel;
+			ppixels++;
 		}
 #else
 	    for (row = 0; row < (stride << 3); idx = (row += stride))
