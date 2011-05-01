@@ -1,0 +1,14 @@
+[merge]
+	tool = kdiff3
+[mergetool "kdiff3"]
+	path = c:/Program Files/KDiff3/kdiff3.exe
+[diff]
+	guitool = kdiff3
+[difftool "kdiff3"]
+	path = c:/Program Files/KDiff3/kdiff3.exe
+[core]
+	editor = \"C:/Program Files/GitExtensions/GitExtensions.exe\" fileeditor
+	autocrlf = true
+[user]
+	name = mong
+	email = among0424@gmail.com
