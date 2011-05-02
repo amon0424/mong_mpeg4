@@ -55,7 +55,9 @@ signal valid : std_logic; -- is the logic selected by a master
 signal reg_mode : std_logic; -- 0 for 2-point interpolation, 1 for 4-point
 signal temp_addr : std_logic_vector(31 downto 0);
 signal pixel: block_9x9;
-signal pixel_index: integer range 0 to 80;
+signal pixel_index: integer range 0 to 82;
+signal read_ready : std_logic; -- is the logic selected by a master
+signal read_done : std_logic; -- is the logic selected by a master
 
 -- pragma translate_off
 -- The following signals are used for GHDL simulation, you don't
@@ -92,8 +94,14 @@ begin
 				ahbso.hready <= '1';
 			elsif rising_edge(clk ) then
 				if (ahbsi.hsel(ahbndx) and ahbsi.htrans(1)) = '1' then
-					ahbso.hready <= '1'; 	-- you should control this signal for
-											-- multi-cycle data processing 
+					if(ahbsi.hwrite='1')then	-- write data
+						ahbso.hready <= '1'; 	-- you should control this signal for
+												-- multi-cycle data processing 
+					else						-- read data, need 1 more cycle
+						ahbso.hready <= '0';
+					end if;
+				elsif (read_ready='1') then		-- read data done
+					ahbso.hready <= '1';
 				end if;
 			end if;
 	end process;
@@ -104,17 +112,20 @@ begin
 			temp_addr <= (others => '0');
 			valid <= '0';
 			pixel_index <= 0;
+			read_ready <= '0';
 		elsif rising_edge(clk) then
 			if (ahbsi.hsel(ahbndx) and ahbsi.htrans(1) and
 				ahbsi.hready and ahbsi.hwrite) = '1' then
 				temp_addr <= ahbsi.haddr;
-				pixel_index <= conv_integer(temp_addr(8 downto 2));
+				pixel_index <= conv_integer(ahbsi.haddr(8 downto 2));
 				valid <= '1';
-			elsif(ahbsi.hsel(ahbndx) = '1' and ahbsi.hwrite = '0') then
-				pixel_index <= conv_integer(temp_addr(8 downto 2));
-				valid <= '1';
+				read_ready <= '0';
+			elsif((ahbsi.hsel(ahbndx) and ahbsi.hready)='1' and ahbsi.hwrite = '0' )then
+				pixel_index <= conv_integer(ahbsi.haddr(8 downto 2));
+				read_ready <= '1';
 			else
 				valid <= '0';
+				read_ready <= '0';
 			end if;
 		end if;
 	end process;
@@ -142,16 +153,22 @@ begin
 	begin
 		if rst = '0' then
 			ahbso.hrdata	<= (others => '0');
+			read_done <= '0';
 		elsif rising_edge(clk) then
-			if (ahbsi.hsel(ahbndx) and ahbsi.hready and valid) = '1' then
+			if (read_ready)='1' then
 				if( pixel_index >= 0 and pixel_index <= 80) then		--pixel value
 					if reg_mode = '0' then	--2-point interpolation
 						shift := ((31 downto 8 => '0') & pixel(pixel_index)) + pixel(pixel_index+1) + 1 - reg_r;
 						ahbso.hrdata <= ('0' & shift(31 downto 1));
 					elsif reg_mode = '1' then	--4-point interpolation
-						shift := ((31 downto 8 => '0') & pixel(pixel_index)) +  pixel(pixel_index+1) + pixel(pixel_index+8) + pixel(pixel_index+9) + 2 - reg_r;
+						shift := ((31 downto 8 => '0') & pixel(pixel_index)) +  pixel(pixel_index+1) + pixel(pixel_index+9) + pixel(pixel_index+10) + 2 - reg_r;
 						ahbso.hrdata <= ("00" & shift(31 downto 2));
 					end if;
+					read_done <= '1';
+				elsif(pixel_index = 81) then
+					ahbso.hrdata <= reg_r;
+				elsif(pixel_index = 82) then
+					ahbso.hrdata <= (31 downto 1 => '0') & reg_mode;
 				else
 					ahbso.hrdata <= (others => '0');
 				end if;
