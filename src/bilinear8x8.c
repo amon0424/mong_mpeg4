@@ -33,65 +33,54 @@ halfpel8x8_h(uint8 * dst, uint8 * src, xint stride, xint rounding)
     xint    row, col, idx;
 
     idx = 0;
-#if HW_MC
-	*reg_r = (xint) rounding;	
-#endif
-    for (row = 0; row < (stride << 3); idx = (row += stride))
-    {
-#if HW_MC
-            //*reg_a = (xint) src[idx];
-            //*reg_b = (xint) src[idx+1];
-            //dst[idx++] = (uint8) (*mc_2pt);
 
-			xint last_idx_1 = (xint)src[idx];
+#if USE_HW_MC
+	volatile int* ppixels = pixels_base;
+	for (row = 0; row < (stride << 3); idx = (row += stride))
+	{
+		*(ppixels++) = src[idx++];
+		*(ppixels++) = src[idx++];
+		*(ppixels++) = src[idx++];
+		*(ppixels++) = src[idx++];
+		*(ppixels++) = src[idx++];
+		*(ppixels++) = src[idx++];
+		*(ppixels++) = src[idx++];
+		*(ppixels++) = src[idx++];
+		// additional
+		*(ppixels++) = src[idx++];
+	}
+	*reg_r = (xint) rounding;
+	*reg_mode = 0;
 
-			xint idx_1 = (xint)src[idx + 1];
-			*reg_a = (xint) last_idx_1;
-            *reg_b = last_idx_1 = (xint) idx_1;
-			dst[idx++] = (uint8) (*mc_2pt);
-
-			idx_1 = (xint)src[idx + 1];
-			*reg_a = (xint) last_idx_1;
-            *reg_b = last_idx_1 = (xint) idx_1;
-			dst[idx++] = (uint8) (*mc_2pt);
-
-			idx_1 = (xint)src[idx + 1];
-			*reg_a = (xint) last_idx_1;
-            *reg_b = last_idx_1 = (xint) idx_1;
-			dst[idx++] = (uint8) (*mc_2pt);
-
-			idx_1 = (xint)src[idx + 1];
-			*reg_a = (xint) last_idx_1;
-            *reg_b = last_idx_1 = (xint) idx_1;
-			dst[idx++] = (uint8) (*mc_2pt);
-
-			idx_1 = (xint)src[idx + 1];
-			*reg_a = (xint) last_idx_1;
-            *reg_b = last_idx_1 = (xint) idx_1;
-			dst[idx++] = (uint8) (*mc_2pt);
-
-			idx_1 = (xint)src[idx + 1];
-			*reg_a = (xint) last_idx_1;
-            *reg_b = last_idx_1 = (xint) idx_1;
-			dst[idx++] = (uint8) (*mc_2pt);
-
-			idx_1 = (xint)src[idx + 1];
-			*reg_a = (xint) last_idx_1;
-            *reg_b = last_idx_1 = (xint) idx_1;
-			dst[idx++] = (uint8) (*mc_2pt);
-
-			idx_1 = (xint)src[idx + 1];
-			*reg_a = (xint) last_idx_1;
-            *reg_b = last_idx_1 = (xint) idx_1;
-			dst[idx++] = (uint8) (*mc_2pt);
+	idx = 0;
+	ppixels = pixels_base;
+	for (row = 0; row < (stride << 3); idx = (row += stride))
+	{
+		dst[idx++] = *(ppixels++);
+		dst[idx++] = *(ppixels++);
+		dst[idx++] = *(ppixels++);
+		dst[idx++] = *(ppixels++);
+		dst[idx++] = *(ppixels++);
+		dst[idx++] = *(ppixels++);
+		dst[idx++] = *(ppixels++);
+		dst[idx++] = *(ppixels++);
+		// skip additional pixel;
+		ppixels++;
+	}
+	printf("%d,", *(ppixels+0));
+	printf("%d,", *(ppixels+1));
+	printf("%d,", *(ppixels+2));
+	printf("%d---", *(ppixels+3));
 #else
+	for (row = 0; row < (stride << 3); idx = (row += stride))
+    {
 		for(col=0; col<8; col++, idx++)
 		{
             xint sum = (xint) src[idx] + src[idx + 1] + 1 - rounding;
             dst[idx] = (uint8) (sum >> 1);
 		}
+	}
 #endif
-    }
 }
 
 void
@@ -153,7 +142,7 @@ halfpel8x8_hv(uint8 * dst, uint8 * src, xint stride, xint rounding)
     xint    row, col, idx;
 
     idx = 0;
-#if USE_HW_MC
+#if HW_MC
 		
  /*           *reg_a = (xint) src[idx];
             *reg_b = (xint) src[idx+1];
