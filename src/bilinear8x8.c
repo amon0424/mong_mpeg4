@@ -99,21 +99,21 @@ halfpel8x8_v(uint8 * dst, uint8 * src, xint stride, xint rounding)
 
     idx = 0;
 
-#if USE_HW_MC1
+#if USE_HW_MC
     volatile int* ppixels = pixels_base;
 	for (col = 0; col < 8; col++)
     {
 		idx = col;
 		*(ppixels++) = src[idx+=stride];
 		*(ppixels++) = src[idx+=stride];
-		*(ppixels++) = src[i						dx+=stride];
+		*(ppixels++) = src[idx+=stride];
 		*(ppixels++) = src[idx+=stride];
 		*(ppixels++) = src[idx+=stride];
 		*(ppixels++) = src[idx+=stride];
 		*(ppixels++) = src[idx+=stride];
 		*(ppixels++) = src[idx+=stride];
 		// additional
-		*(ppixels++) = src[idx+=stride];
+		*(ppixels++) = src[idx];
 	}
 	*reg_r = (xint) rounding;
 	*reg_mode = 0;
@@ -130,9 +130,9 @@ halfpel8x8_v(uint8 * dst, uint8 * src, xint stride, xint rounding)
 		dst[idx+=stride] = *(ppixels++);
 		dst[idx+=stride] = *(ppixels++);
 		dst[idx+=stride] = *(ppixels++);
-		dst[idx+=stride] = *(ppixels++);
+		dst[idx] = *(ppixels++);
 		// skip additional pixel;
-		ppixels+=stride;
+		ppixels++;
 	}
 #else
 	for (row = 0; row < (stride << 3); idx = (row += stride))
