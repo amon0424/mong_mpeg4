@@ -104,7 +104,7 @@ halfpel8x8_v(uint8 * dst, uint8 * src, xint stride, xint rounding)
 	for (col = 0; col < 8; col++)
     {
 		idx = col;
-		*(ppixels++) = src[idx+=stride];
+		*(ppixels++) = src[idx];
 		*(ppixels++) = src[idx+=stride];
 		*(ppixels++) = src[idx+=stride];
 		*(ppixels++) = src[idx+=stride];
@@ -113,8 +113,9 @@ halfpel8x8_v(uint8 * dst, uint8 * src, xint stride, xint rounding)
 		*(ppixels++) = src[idx+=stride];
 		*(ppixels++) = src[idx+=stride];
 		// additional
-		*(ppixels++) = src[idx];
+		*(ppixels++) = src[idx+=stride];
 	}
+
 	*reg_r = (xint) rounding;
 	*reg_mode = 0;
 
@@ -123,14 +124,14 @@ halfpel8x8_v(uint8 * dst, uint8 * src, xint stride, xint rounding)
 	for (col = 0; col < 8; col++)
     {
 		idx = col;
-		dst[idx+=stride] = *(ppixels++);
-		dst[idx+=stride] = *(ppixels++);
-		dst[idx+=stride] = *(ppixels++);
-		dst[idx+=stride] = *(ppixels++);
-		dst[idx+=stride] = *(ppixels++);
-		dst[idx+=stride] = *(ppixels++);
-		dst[idx+=stride] = *(ppixels++);
 		dst[idx] = *(ppixels++);
+		dst[idx+=stride] = *(ppixels++);
+		dst[idx+=stride] = *(ppixels++);
+		dst[idx+=stride] = *(ppixels++);
+		dst[idx+=stride] = *(ppixels++);
+		dst[idx+=stride] = *(ppixels++);
+		dst[idx+=stride] = *(ppixels++);
+		dst[idx+=stride] = *(ppixels++);
 		// skip additional pixel;
 		ppixels++;
 	}
@@ -144,7 +145,6 @@ halfpel8x8_v(uint8 * dst, uint8 * src, xint stride, xint rounding)
 		}
 	}
 #endif
-
 }
 
 void
