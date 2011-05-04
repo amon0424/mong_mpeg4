@@ -34,6 +34,7 @@ void
 halfpel8x8_h(uint8 * dst, uint8 * src, xint stride, xint rounding)
 {
     xint    row, col, idx;
+	xint	i;
 
     idx = 0;
 #if USE_HW_MC_LAB3_ORI
@@ -49,19 +50,64 @@ halfpel8x8_h(uint8 * dst, uint8 * src, xint stride, xint rounding)
     }
 #elif USE_HW_MC
 	volatile int* ppixels = pixels_base;
-	for (row = 0; row < (stride << 3); idx = (row += stride))
+	for (i = 0; i < 2; i++)
 	{
-		*(ppixels++) = src[idx++];
-		*(ppixels++) = src[idx++];
-		*(ppixels++) = src[idx++];
-		*(ppixels++) = src[idx++];
-		*(ppixels++) = src[idx++];
-		*(ppixels++) = src[idx++];
-		*(ppixels++) = src[idx++];
-		*(ppixels++) = src[idx++];
-		// additional
-		*(ppixels++) = src[idx++];
+		row = 0;
+		uint write[9]={0};
+
+		write[0] = 0;
+		write[0] |= src[idx++];					//row0
+		write[0] |= (uint)src[idx++] << 8;
+		write[0] |= (uint)src[idx++] << 16;
+		write[0] |= (uint)src[idx++] << 24;
+		write[1] |= src[idx++];
+		write[1] |= (uint)src[idx++] << 8;
+		write[1] |= (uint)src[idx++] << 16;
+		write[1] |= (uint)src[idx++] << 24;
+		write[2] |= src[idx]; idx = (row += stride);
+
+		write[2] |= (uint)src[idx++] << 8;		//row1
+		write[2] |= (uint)src[idx++] << 16;
+		write[2] |= (uint)src[idx++] << 24;
+		write[3] |= src[idx++];
+		write[3] |= (uint)src[idx++] << 8;
+		write[3] |= (uint)src[idx++] << 16;
+		write[3] |= (uint)src[idx++] << 24;
+		write[4] |= src[idx++];
+		write[4] |= (uint)src[idx] << 8; idx = (row += stride);
+
+		write[4] |= (uint)src[idx++] << 16;		//row2
+		write[4] |= (uint)src[idx++] << 24;
+		write[5] |= src[idx++];
+		write[5] |= (uint)src[idx++] << 8;
+		write[5] |= (uint)src[idx++] << 16;
+		write[5] |= (uint)src[idx++] << 24;
+		write[6] |= src[idx++];
+		write[6] |= (uint)src[idx++] << 8;
+		write[6] |= (uint)src[idx] << 16; idx = (row += stride);
+
+		write[6] |= (uint)src[idx++] << 24;		//row3
+		write[7] |= src[idx++];
+		write[7] |= (uint)src[idx++] << 8;
+		write[7] |= (uint)src[idx++] << 16;
+		write[7] |= (uint)src[idx++] << 24;
+		write[8] |= src[idx++];
+		write[8] |= (uint)src[idx++] << 8;
+		write[8] |= (uint)src[idx++] << 16;
+		write[8] |= (uint)src[idx] << 24; idx = (row += stride);
+
+		*(ppixels++) = write[0];
+		*(ppixels++) = write[1];
+		*(ppixels++) = write[2];
+		*(ppixels++) = write[3];
+		*(ppixels++) = write[4];
+		*(ppixels++) = write[5];
+		*(ppixels++) = write[6];
+		*(ppixels++) = write[7];
+		*(ppixels++) = write[8];
 	}
+	// last addition row
+
 	*reg_r = (xint) rounding;
 	*reg_mode = 0;
 
