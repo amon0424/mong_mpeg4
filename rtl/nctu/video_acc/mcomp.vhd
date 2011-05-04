@@ -120,8 +120,8 @@ begin
 				pixel_index <= conv_integer(ahbsi.haddr(8 downto 2));
 				valid <= '1';
 				read_ready <= '0';
-			elsif((ahbsi.hsel(ahbndx) and ahbsi.hready)='1' and ahbsi.hwrite = '0' )then
-				pixel_index <= conv_integer(ahbsi.haddr(8 downto 2));
+			elsif (ahbsi.hsel(ahbndx) and  ahbsi.htrans(1) and ahbsi.hready)='1' and ahbsi.hwrite = '0'then
+				pixel_index <= conv_integer(ahbsi.haddr(6 downto 0));
 				read_ready <= '1';
 			else
 				valid <= '0';
@@ -139,6 +139,9 @@ begin
 			if valid = '1' then
 				if( pixel_index >= 0 and pixel_index <= 80) then
 					pixel(pixel_index) <= ahbsi.hwdata(7 downto 0);
+					pixel(pixel_index+1) <= ahbsi.hwdata(15 downto 8);
+					pixel(pixel_index+2) <= ahbsi.hwdata(23 downto 16);
+					pixel(pixel_index+3) <= ahbsi.hwdata(31 downto 24);
 				elsif(pixel_index = 81) then
 					reg_r <= ahbsi.hwdata;
 				elsif(pixel_index = 82) then
@@ -183,4 +186,3 @@ begin
 	generic map ("Lab3 " & tost(ahbndx) & ": Motion Compensation Module rev 2");
 -- pragma translate_on
 end;
-
