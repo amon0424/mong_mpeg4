@@ -31,7 +31,11 @@ entity mcomp is
 		ahbaddr : integer := 0;
 		addrmsk : integer := 16#fff#;
 		verid   : integer := 0;
-		irq_no  : integer := 0
+		irq_no  : integer := 0;
+		block_ub: integer := 108;
+		rounding_addr: integer := 436;
+		mode_addr: integer := 440;
+		stride: integer := 12
 	);
 
 	port (
@@ -49,13 +53,13 @@ constant hconfig : ahb_config_type := (
 	4			=> ahb_membar(ahbaddr, '1', '0', addrmsk),
 	others => X"00000000"
 );
-type block_9x9 is array (0 to 80) of std_logic_vector(7 downto 0);
+type block_9x9 is array (0 to block_ub) of std_logic_vector(7 downto 0);
 signal reg_r : std_logic_vector(31 downto 0);	-- rounding value
 signal valid : std_logic; -- is the logic selected by a master
-signal reg_mode : std_logic; -- 0 for 2-point interpolation, 1 for 4-point
+signal reg_mode : std_logic_vector(1 downto 0); -- 0 for 2-point interpolation, 1 for 4-point
 signal temp_addr : std_logic_vector(31 downto 0);
 signal pixel: block_9x9;
-signal pixel_index: integer range 0 to 82;
+signal pixel_index: integer range 0 to 440;
 signal read_ready : std_logic; -- is the logic selected by a master
 signal read_done : std_logic; -- is the logic selected by a master
 
@@ -117,7 +121,7 @@ begin
 			if (ahbsi.hsel(ahbndx) and ahbsi.htrans(1) and
 				ahbsi.hready and ahbsi.hwrite) = '1' then
 				temp_addr <= ahbsi.haddr;
-				pixel_index <= conv_integer(ahbsi.haddr(8 downto 2));
+				pixel_index <= conv_integer(ahbsi.haddr(6 downto 0));
 				valid <= '1';
 				read_ready <= '0';
 			elsif (ahbsi.hsel(ahbndx) and  ahbsi.htrans(1) and ahbsi.hready)='1' and ahbsi.hwrite = '0'then
@@ -134,44 +138,74 @@ begin
 	begin
 		if rst = '0' then
 			reg_r <= (others => '0');
-			reg_mode <= '0';
+			reg_mode <= "00";
 		elsif rising_edge(clk) then
 			if valid = '1' then
-				if( pixel_index >= 0 and pixel_index <= 80) then
+				if( pixel_index >= 0 and pixel_index <= block_ub) then
 					pixel(pixel_index) <= ahbsi.hwdata(7 downto 0);
 					pixel(pixel_index+1) <= ahbsi.hwdata(15 downto 8);
 					pixel(pixel_index+2) <= ahbsi.hwdata(23 downto 16);
 					pixel(pixel_index+3) <= ahbsi.hwdata(31 downto 24);
-				elsif(pixel_index = 81) then
+				elsif(pixel_index = rounding_addr) then
 					reg_r <= ahbsi.hwdata;
-				elsif(pixel_index = 82) then
-					reg_mode <= ahbsi.hwdata(0);
+				elsif(pixel_index = mode_addr) then
+					reg_mode <= ahbsi.hwdata(1 downto 0);
 				end if;
 			end if;
 		end if;
 	end process;
 
 	read_process : process (clk, rst)
-	variable shift : std_logic_vector(31 downto 0);
+	variable shift1 : std_logic_vector(9 downto 0);
+	variable shift2 : std_logic_vector(9 downto 0);
+	variable shift3 : std_logic_vector(9 downto 0);
+	variable shift4 : std_logic_vector(9 downto 0);
 	begin
 		if rst = '0' then
 			ahbso.hrdata	<= (others => '0');
 			read_done <= '0';
 		elsif rising_edge(clk) then
 			if (read_ready)='1' then
-				if( pixel_index >= 0 and pixel_index <= 80) then		--pixel value
-					if reg_mode = '0' then	--2-point interpolation
-						shift := ((31 downto 8 => '0') & pixel(pixel_index)) + pixel(pixel_index+1) + 1 - reg_r;
-						ahbso.hrdata <= ('0' & shift(31 downto 1));
-					elsif reg_mode = '1' then	--4-point interpolation
-						shift := ((31 downto 8 => '0') & pixel(pixel_index)) +  pixel(pixel_index+1) + pixel(pixel_index+9) + pixel(pixel_index+10) + 2 - reg_r;
-						ahbso.hrdata <= ("00" & shift(31 downto 2));
-					end if;
+				if( pixel_index >= 0 and pixel_index <= block_ub) then		--pixel value
+					case reg_mode is
+					when "00" =>	--2-point interpolation h
+						shift1 := ("00" & pixel(pixel_index)) + pixel(pixel_index+1) + 1 - reg_r;
+						shift2 := ("00" & pixel(pixel_index+1)) + pixel(pixel_index+2) + 1 - reg_r;
+						shift3 := ("00" & pixel(pixel_index+2)) + pixel(pixel_index+3) + 1 - reg_r;
+						shift4 := ("00" & pixel(pixel_index+3)) + pixel(pixel_index+4) + 1 - reg_r;
+						
+						ahbso.hrdata(7 downto 0) <= (shift1(8 downto 1));
+						ahbso.hrdata(15 downto 8) <= (shift2(8 downto 1));
+						ahbso.hrdata(23 downto 16) <= (shift3(8 downto 1));
+						ahbso.hrdata(31 downto 24) <= (shift4(8 downto 1));
+					when "01" =>	--2-point interpolation v
+						shift1 := ("00" & pixel(pixel_index)) + pixel(pixel_index+stride) + 1 - reg_r;
+						shift2 := ("00" & pixel(pixel_index+1)) + pixel(pixel_index+stride+1) + 1 - reg_r;
+						shift3 := ("00" & pixel(pixel_index+2)) + pixel(pixel_index+stride+2) + 1 - reg_r;
+						shift4 := ("00" & pixel(pixel_index+3)) + pixel(pixel_index+stride+3) + 1 - reg_r;
+						
+						ahbso.hrdata(7 downto 0) <= (shift1(8 downto 1));
+						ahbso.hrdata(15 downto 8) <= (shift2(8 downto 1));
+						ahbso.hrdata(23 downto 16) <= (shift3(8 downto 1));
+						ahbso.hrdata(31 downto 24) <= (shift4(8 downto 1));	
+					when "10" =>	--4-point interpolation
+						shift1 := ("00" & pixel(pixel_index)) +  pixel(pixel_index+1) + pixel(pixel_index+stride) + pixel(pixel_index+stride+1) + 2 - reg_r;
+						shift2 := ("00" & pixel(pixel_index+1)) +  pixel(pixel_index+2) + pixel(pixel_index+stride+1) + pixel(pixel_index+stride+2) + 2 - reg_r;
+						shift3 := ("00" & pixel(pixel_index+2)) +  pixel(pixel_index+3) + pixel(pixel_index+stride+2) + pixel(pixel_index+stride+3) + 2 - reg_r;
+						shift4 := ("00" & pixel(pixel_index+3)) +  pixel(pixel_index+4) + pixel(pixel_index+stride+3) + pixel(pixel_index+stride+4) + 2 - reg_r;
+						
+						ahbso.hrdata(7 downto 0) <= shift1(9 downto 2);
+						ahbso.hrdata(15 downto 8) <= shift2(9 downto 2);
+						ahbso.hrdata(23 downto 16) <= shift3(9 downto 2);
+						ahbso.hrdata(31 downto 24) <= shift4(9 downto 2);
+					when others =>
+						ahbso.hrdata <= (others => 'X');
+					end case;
 					read_done <= '1';
-				elsif(pixel_index = 81) then
+				elsif(pixel_index = rounding_addr) then
 					ahbso.hrdata <= reg_r;
-				elsif(pixel_index = 82) then
-					ahbso.hrdata <= (31 downto 1 => '0') & reg_mode;
+				elsif(pixel_index = mode_addr) then
+					ahbso.hrdata <= (31 downto 2 => '0') & reg_mode;
 				else
 					ahbso.hrdata <= (others => '0');
 				end if;

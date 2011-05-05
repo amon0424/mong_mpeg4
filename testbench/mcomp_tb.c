@@ -27,7 +27,7 @@ volatile int *mc_4pt = (int *) 0xb0000150;
 int
 main(int argc, char **argv)
 {
-	int i, idx;
+	int i,j, idx, row;
 	volatile unsigned int* ppixels;
 	unsigned int val;
 
@@ -44,57 +44,62 @@ main(int argc, char **argv)
 	int dst[81];
 	int stride = 9;
 
-	ppixels = pixels_base;
-	idx=0;
-	val=0;
-	val |= src[idx];				// 0
-	val |= src[idx+=stride] << 8;
-	val |= src[idx+=stride] << 16;
-	val |= src[idx+=stride] << 24;
-	*(ppixels++) = val;
-	val = 0;
-	val |= src[idx+=stride];
-	val |= src[idx+=stride] << 8;
-	val |= src[idx+=stride] << 16;
-	val |= src[idx+=stride] << 24;
-	*(ppixels++) = val;
+	for(i=0; i<3;i++)
+	{
+		ppixels = pixels_base;
+		idx=0;
+		for (row = 0; row < (stride << 3)+stride; idx = (row += stride))
+		{
+			val=0;
+			val |= src[idx++];
+			val |= src[idx++] << 8;
+			val |= src[idx++] << 16;
+			val |= src[idx++] << 24;
+			*(ppixels++) = val;
 
-	val = 0;
-	val |= src[idx+=stride];
-	idx=1; val |= src[idx];				//1
-	val |= src[idx+=stride];
-	val |= src[idx+=stride];
-	*(ppixels++) = val;
+			val=0;
+			val |= src[idx++];
+			val |= src[idx++] << 8;
+			val |= src[idx++] << 16;
+			val |= src[idx++] << 24;
+			*(ppixels++) = val;
 
-	val = 0;
-	val |= src[idx+=stride];
-	val |= src[idx+=stride] << 8;
-	val |= src[idx+=stride] << 16;
-	val |= src[idx+=stride] << 24;
-	*(ppixels++) = val;
+			val=0;
+			val |= src[idx++];
+			*(ppixels++) = val;
+		}
 
-	val = 0;
-	val |= src[idx+=stride];
-	val |= src[idx+=stride] << 8;
-	idx=2; val |= src[idx] << 16;		//2
-	val |= src[idx+=stride] << 24;
-	*(ppixels++) = val;
+		*reg_r = 0;
+		*reg_mode = i;
 
+		ppixels = pixels_base;
+		idx=0;
+		for (row = 0; row < (stride << 3); idx = (row += stride))
+		{
+			val = *(ppixels++);
+			dst[idx++] = val & 0xFF;
+			dst[idx++] = (val >> 8) & 0xFF;
+			dst[idx++] = (val >> 16) & 0xFF;
+			dst[idx++] = (val >> 24) & 0xFF;
 
-	*reg_r = 0;
-	*reg_mode = 0;
+			val = *(ppixels++);
+			dst[idx++] = val & 0xFF;
+			dst[idx++] = (val >> 8) & 0xFF;
+			dst[idx++] = (val >> 16) & 0xFF;
+			dst[idx++] = (val >> 24) & 0xFF;
 
-	ppixels = pixels_base + 9;
-	idx=0;
-	dst[idx] = *(ppixels++);
-	dst[idx+=stride] = *(ppixels++);
-	dst[idx+=stride] = *(ppixels++);
-	dst[idx+=stride] = *(ppixels++);
-	dst[idx+=stride] = *(ppixels++);
-	dst[idx+=stride] = *(ppixels++);
-	dst[idx+=stride] = *(ppixels++);
-	dst[idx+=stride] = *(ppixels++);
+			ppixels++;
 
-	printf("result: %d, %d, %d, %d, %d, %d, %d, %d\n", dst[1], dst[9], dst[17], dst[25], dst[33], dst[41], dst[49], dst[57]);
+		}
+
+		idx=0;
+		printf("result %d:\n", i);
+		for (row = 0; row < (stride << 3); idx = (row += stride))
+		{
+			for(i=0; i<8; i++, idx++)
+				printf("%d,", dst[idx]);
+			printf("\n");
+		}
+	}
     return 0;
 }
