@@ -11,8 +11,8 @@ volatile int *reg_a  = (int *) 0xb0000000;
 volatile int *reg_b  = (int *) 0xb0000004;
 volatile int *reg_c  = (int *) 0xb0000008;
 volatile int *reg_d  = (int *) 0xb000000c;
-volatile int *reg_r  = (int *) 0xb0000144;
-volatile int *reg_mode = (int *) 0xb0000148;
+volatile int *reg_r  = (int *) 0xb00001B4;
+volatile int *reg_mode = (int *) 0xb00001B8;
 #elif USE_HW_MC1
 volatile int *reg_a  = (int *) 0xb0000000;
 volatile int *reg_b  = (int *) 0xb0000004;
@@ -27,7 +27,7 @@ volatile int *mc_4pt = (int *) 0xb0000150;
 int
 main(int argc, char **argv)
 {
-	int i,j, idx, row;
+	int i,j,m, idx, row;
 	volatile unsigned int* ppixels;
 	unsigned int val;
 
@@ -44,7 +44,7 @@ main(int argc, char **argv)
 	int dst[81];
 	int stride = 9;
 
-	for(i=0; i<3;i++)
+	for(m=0; m<3;m++)
 	{
 		ppixels = pixels_base;
 		idx=0;
@@ -70,7 +70,7 @@ main(int argc, char **argv)
 		}
 
 		*reg_r = 0;
-		*reg_mode = i;
+		*reg_mode = m;
 
 		ppixels = pixels_base;
 		idx=0;
@@ -93,7 +93,7 @@ main(int argc, char **argv)
 		}
 
 		idx=0;
-		printf("result %d:\n", i);
+		printf("result %d:\n", m);
 		for (row = 0; row < (stride << 3); idx = (row += stride))
 		{
 			for(i=0; i<8; i++, idx++)
