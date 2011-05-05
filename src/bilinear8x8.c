@@ -26,8 +26,8 @@ volatile int *mc_2pt = (int *) 0xb0000014;
 volatile int *mc_4pt = (int *) 0xb0000018;
 #elif USE_HW_MC
 volatile int *pixels_base = (int *) 0xb0000000;
-volatile int *reg_r  = (int *) 0xb0000144;
-volatile int *reg_mode = (int *) 0xb0000148;
+volatile int *reg_r  = (int *) 0xb00001B4;
+volatile int *reg_mode = (int *) 0xb00001B8;
 #endif
 
 void

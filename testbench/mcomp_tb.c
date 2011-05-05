@@ -11,8 +11,8 @@ volatile int *reg_a  = (int *) 0xb0000000;
 volatile int *reg_b  = (int *) 0xb0000004;
 volatile int *reg_c  = (int *) 0xb0000008;
 volatile int *reg_d  = (int *) 0xb000000c;
-volatile int *reg_r  = (int *) 0xb00001B4;
-volatile int *reg_mode = (int *) 0xb00001B8;
+volatile int *reg_r  = (int *) 0xb000006c;
+volatile int *reg_mode = (int *) 0xb0000070;
 #elif USE_HW_MC1
 volatile int *reg_a  = (int *) 0xb0000000;
 volatile int *reg_b  = (int *) 0xb0000004;

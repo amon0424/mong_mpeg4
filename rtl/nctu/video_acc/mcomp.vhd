@@ -32,9 +32,10 @@ entity mcomp is
 		addrmsk : integer := 16#fff#;
 		verid   : integer := 0;
 		irq_no  : integer := 0;
-		block_ub: integer := 108;
-		rounding_addr: integer := 436;
-		mode_addr: integer := 440;
+		block_ub: integer := 107;
+		pixelend_addr: integer := 107;
+		rounding_addr: integer := 108;
+		mode_addr: integer := 112;
 		stride: integer := 12
 	);
 
@@ -59,7 +60,7 @@ signal valid : std_logic; -- is the logic selected by a master
 signal reg_mode : std_logic_vector(1 downto 0); -- 0 for 2-point interpolation, 1 for 4-point
 signal temp_addr : std_logic_vector(31 downto 0);
 signal pixel: block_9x9;
-signal pixel_index: integer range 0 to 440;
+signal pixel_index: integer range 0 to 116;
 signal read_ready : std_logic; -- is the logic selected by a master
 signal read_done : std_logic; -- is the logic selected by a master
 
@@ -141,7 +142,7 @@ begin
 			reg_mode <= "00";
 		elsif rising_edge(clk) then
 			if valid = '1' then
-				if( pixel_index >= 0 and pixel_index <= block_ub) then
+				if( pixel_index >= 0 and pixel_index <= pixelend_addr) then
 					pixel(pixel_index) <= ahbsi.hwdata(7 downto 0);
 					pixel(pixel_index+1) <= ahbsi.hwdata(15 downto 8);
 					pixel(pixel_index+2) <= ahbsi.hwdata(23 downto 16);
@@ -166,33 +167,33 @@ begin
 			read_done <= '0';
 		elsif rising_edge(clk) then
 			if (read_ready)='1' then
-				if( pixel_index >= 0 and pixel_index <= block_ub) then		--pixel value
+				if( pixel_index >= 0 and pixel_index <= pixelend_addr) then		--pixel value
 					case reg_mode is
 					when "00" =>	--2-point interpolation h
-						shift1 := ("00" & pixel(pixel_index)) + pixel(pixel_index+1) + 1 - reg_r;
-						shift2 := ("00" & pixel(pixel_index+1)) + pixel(pixel_index+2) + 1 - reg_r;
-						shift3 := ("00" & pixel(pixel_index+2)) + pixel(pixel_index+3) + 1 - reg_r;
-						shift4 := ("00" & pixel(pixel_index+3)) + pixel(pixel_index+4) + 1 - reg_r;
+						shift1 := ("00" & pixel(pixel_index)) + pixel(pixel_index+1) + 1 - reg_r(7 downto 0);
+						shift2 := ("00" & pixel(pixel_index+1)) + pixel(pixel_index+2) + 1 - reg_r(7 downto 0);
+						shift3 := ("00" & pixel(pixel_index+2)) + pixel(pixel_index+3) + 1 - reg_r(7 downto 0);
+						shift4 := ("00" & pixel(pixel_index+3)) + pixel(pixel_index+4) + 1 - reg_r(7 downto 0);
 						
 						ahbso.hrdata(7 downto 0) <= (shift1(8 downto 1));
 						ahbso.hrdata(15 downto 8) <= (shift2(8 downto 1));
 						ahbso.hrdata(23 downto 16) <= (shift3(8 downto 1));
 						ahbso.hrdata(31 downto 24) <= (shift4(8 downto 1));
 					when "01" =>	--2-point interpolation v
-						shift1 := ("00" & pixel(pixel_index)) + pixel(pixel_index+stride) + 1 - reg_r;
-						shift2 := ("00" & pixel(pixel_index+1)) + pixel(pixel_index+stride+1) + 1 - reg_r;
-						shift3 := ("00" & pixel(pixel_index+2)) + pixel(pixel_index+stride+2) + 1 - reg_r;
-						shift4 := ("00" & pixel(pixel_index+3)) + pixel(pixel_index+stride+3) + 1 - reg_r;
+						shift1 := ("00" & pixel(pixel_index)) + pixel(pixel_index+stride) + 1 - reg_r(7 downto 0);
+						shift2 := ("00" & pixel(pixel_index+1)) + pixel(pixel_index+stride+1) + 1 - reg_r(7 downto 0);
+						shift3 := ("00" & pixel(pixel_index+2)) + pixel(pixel_index+stride+2) + 1 - reg_r(7 downto 0);
+						shift4 := ("00" & pixel(pixel_index+3)) + pixel(pixel_index+stride+3) + 1 - reg_r(7 downto 0);
 						
 						ahbso.hrdata(7 downto 0) <= (shift1(8 downto 1));
 						ahbso.hrdata(15 downto 8) <= (shift2(8 downto 1));
 						ahbso.hrdata(23 downto 16) <= (shift3(8 downto 1));
 						ahbso.hrdata(31 downto 24) <= (shift4(8 downto 1));	
 					when "10" =>	--4-point interpolation
-						shift1 := ("00" & pixel(pixel_index)) +  pixel(pixel_index+1) + pixel(pixel_index+stride) + pixel(pixel_index+stride+1) + 2 - reg_r;
-						shift2 := ("00" & pixel(pixel_index+1)) +  pixel(pixel_index+2) + pixel(pixel_index+stride+1) + pixel(pixel_index+stride+2) + 2 - reg_r;
-						shift3 := ("00" & pixel(pixel_index+2)) +  pixel(pixel_index+3) + pixel(pixel_index+stride+2) + pixel(pixel_index+stride+3) + 2 - reg_r;
-						shift4 := ("00" & pixel(pixel_index+3)) +  pixel(pixel_index+4) + pixel(pixel_index+stride+3) + pixel(pixel_index+stride+4) + 2 - reg_r;
+						shift1 := ("00" & pixel(pixel_index)) +  pixel(pixel_index+1) + pixel(pixel_index+stride) + pixel(pixel_index+stride+1) + 2 - reg_r(7 downto 0);
+						shift2 := ("00" & pixel(pixel_index+1)) +  pixel(pixel_index+2) + pixel(pixel_index+stride+1) + pixel(pixel_index+stride+2) + 2 - reg_r(7 downto 0);
+						shift3 := ("00" & pixel(pixel_index+2)) +  pixel(pixel_index+3) + pixel(pixel_index+stride+2) + pixel(pixel_index+stride+3) + 2 - reg_r(7 downto 0);
+						shift4 := ("00" & pixel(pixel_index+3)) +  pixel(pixel_index+4) + pixel(pixel_index+stride+3) + pixel(pixel_index+stride+4) + 2 - reg_r(7 downto 0);
 						
 						ahbso.hrdata(7 downto 0) <= shift1(9 downto 2);
 						ahbso.hrdata(15 downto 8) <= shift2(9 downto 2);
