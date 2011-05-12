@@ -19,9 +19,14 @@ OC=$(SPARCTOOLS)/sparc-elf-objcopy
 
 # Put your application build procedure here
 
-APPNAME = mcomp_tb
+APPNAME1 = idct_tb_small
+APPNAME2 = idct_tb
 
-$(APPNAME):  $(APPNAME).o $(OBJS)
+$(APPNAME1):  $(APPNAME1).o $(OBJS)
+	$(CC) $(LFLAGS) -o $@.elf $@.o
+	$(OC) -O srec $@.elf sdram.srec
+
+$(APPNAME2):  $(APPNAME2).o $(OBJS)
 	$(CC) $(LFLAGS) -o $@.elf $@.o
 	$(OC) -O srec $@.elf sdram.srec
 

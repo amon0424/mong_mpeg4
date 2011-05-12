@@ -37,6 +37,7 @@ package devices is
 
   constant VENDOR_NCTU       : amba_vendor_type := 16#18#;
   constant NCTU_MCOMP        : amba_device_type := 16#001#;
+  constant NCTU_IDCT         : amba_device_type := 16#002#;
 
 -- Vendor codes
 
@@ -310,6 +311,7 @@ package devices is
 
   constant nctu_device_table : device_table_type := (
     NCTU_MCOMP       => "Lab3 Motion Compensation Logic ",
+    NCTU_IDCT        => "Lab4 IDCT Logic                ",
     others           => "Unknown Device                 "
   );
 
