@@ -121,6 +121,14 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
+				RelativePath="..\idct_tb.c"
+				>
+			</File>
+			<File
+				RelativePath="..\idct_tb_small.c"
+				>
+			</File>
+			<File
 				RelativePath="..\mcomp_tb.c"
 				>
 			</File>
@@ -137,6 +145,14 @@
 			UniqueIdentifier="{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}"
 			>
 		</Filter>
+		<File
+			RelativePath="..\make.target"
+			>
+		</File>
+		<File
+			RelativePath="..\Makefile"
+			>
+		</File>
 	</Files>
 	<Globals>
 	</Globals>
