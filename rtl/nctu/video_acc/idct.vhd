@@ -97,15 +97,15 @@ architecture rtl of idct is
     signal h30, h31, h32, h33 : signed(15 downto 0);
 
     -- Even-point IDCT Kernel Matrix
-    constant HU0 : signed(15 downto 0) := X"02D4";
-    constant HU1 : signed(15 downto 0) := X"03B2";
-    constant HU2 : signed(15 downto 0) := X"0188";
+    constant HU0 : signed(15 downto 0) := X"02D4";	--724
+    constant HU1 : signed(15 downto 0) := X"03B2";	--946
+    constant HU2 : signed(15 downto 0) := X"0188";	--392
 
     -- Odd-point IDCT Kernel Matrix
-    constant HL0 : signed(15 downto 0) :=  X"03EC";
-    constant HL1 : signed(15 downto 0) :=  X"0353";
-    constant HL2 : signed(15 downto 0) :=  X"0239";
-    constant HL3 : signed(15 downto 0) :=  X"00C8";
+    constant HL0 : signed(15 downto 0) :=  X"03EC";	--1004
+    constant HL1 : signed(15 downto 0) :=  X"0353";	--851
+    constant HL2 : signed(15 downto 0) :=  X"0239";	--569
+    constant HL3 : signed(15 downto 0) :=  X"00C8";	--200
 
     signal ack_temp: std_ulogic;
 
@@ -280,7 +280,7 @@ begin
             main_cntr <= "00000";
         elsif (rising_edge(clk)) then
             if (action = '1') then
-                if (main_cntr < "01000") then
+                if (main_cntr < "01000") then	-- if main_cntr < 8
                     main_cntr <= main_cntr + 1;
                 else
                     main_cntr <= "00000";
@@ -294,7 +294,7 @@ begin
         if (rst = '0') then
             aux_cntr <= "0000";
         elsif (rising_edge(clk)) then
-            if (main_cntr > "00011") then
+            if (main_cntr > "00011") then	-- if main_cntr >= 4
                 aux_cntr <= aux_cntr + 1;
             else
                 aux_cntr <= "0000";
@@ -313,16 +313,16 @@ begin
 
     process(hv_pr_state, action, main_cntr)
     begin
-        case hv_pr_state is
-        when init_hv =>
+        case hv_pr_state is		-- when previous state is 
+        when init_hv =>			-- init_hv
             if (action = '1') then
-                hv_nx_state <= calc_hv;
+                hv_nx_state <= calc_hv;		-- if action=1, change state to clac_hv
             else
                 hv_nx_state <= init_hv;
             end if;
-        when calc_hv =>
-            if (main_cntr > "00111") then
-                hv_nx_state <= init_hv;
+        when calc_hv =>			-- calc_hv
+            if (main_cntr > "00111") then	-- if main_cntr > 7
+                hv_nx_state <= init_hv;		-- change state to init_hv
             else
                 hv_nx_state <= calc_hv;
             end if;
@@ -341,16 +341,16 @@ begin
 
     process(g2p_pr_state, main_cntr, action_two, aux_cntr)
     begin
-        case g2p_pr_state is
-        when init_g2p =>
+        case g2p_pr_state is	-- when previous state is 
+        when init_g2p =>		-- init_g2p
             if (action_two = '1') then
-                g2p_nx_state <= calc_g2p;
+                g2p_nx_state <= calc_g2p;	-- if action2=1, change state to calc_g2p
             else
                 g2p_nx_state <= init_g2p;
             end if;
-        when calc_g2p =>
-            if (aux_cntr > "0011") then
-                g2p_nx_state <= init_g2p;
+        when calc_g2p =>		-- calc_g2p
+            if (aux_cntr > "0011") then		-- if aux_cntr > 3
+                g2p_nx_state <= init_g2p;	-- change state toinit_g2p
             else
                 g2p_nx_state <= calc_g2p;
             end if;
@@ -367,21 +367,28 @@ begin
     ----------------------------------------
 
     -- Selection of IDCT kernel matrix
+	-- main_cntr(2) = 0 => main_cntr=0~3
+	-- main_cntr(2) = 1 => main_cntr=4~7
+	
+	-- row0
     h00 <=  HU0 when (main_cntr(2) = '0') else  HL0;
     h01 <=  HU1 when (main_cntr(2) = '0') else  HL1;
     h02 <=  HU0 when (main_cntr(2) = '0') else  HL2;
     h03 <=  HU2 when (main_cntr(2) = '0') else  HL3;
 
+	-- row1
     h10 <=  HU0 when (main_cntr(2) = '0') else -HL1;
     h11 <=  HU2 when (main_cntr(2) = '0') else  HL3;
     h12 <= -HU0 when (main_cntr(2) = '0') else  HL0;
     h13 <= -HU1 when (main_cntr(2) = '0') else  HL2;
 
+	-- row2
     h20 <=  HU0 when (main_cntr(2) = '0') else  HL2;
     h21 <= -HU2 when (main_cntr(2) = '0') else -HL0;
     h22 <= -HU0 when (main_cntr(2) = '0') else  HL3;
     h23 <=  HU1 when (main_cntr(2) = '0') else  HL1;
 
+	-- row3
     h30 <=  HU0 when (main_cntr(2) = '0') else -HL3;
     h31 <= -HU1 when (main_cntr(2) = '0') else  HL2;
     h32 <=  HU0 when (main_cntr(2) = '0') else -HL1;
@@ -403,7 +410,7 @@ begin
             m4 <= (others => '0');
         elsif (rising_edge(clk)) then
             if (action = '1') then
-                case main_cntr(1 downto 0) is
+                case main_cntr(1 downto 0) is	-- main_cntr(1~0)=0~3
                 when "00" =>
                     m1 <= h00*signed(v0);
                     m2 <= h01*signed(v1);
@@ -441,7 +448,7 @@ begin
             g6 <= (others => '0'); g7 <= (others => '0');
         elsif (rising_edge(clk)) then
             if (hv_pr_state = calc_hv) then
-                case main_cntr(3 downto 0) is
+                case main_cntr(3 downto 0) is	-- when main_counter = 1~8 ( wait 1 cycle for m register write )
                 when "0001" => g0 <= m1 + m2 + m3 + m4;
                 when "0010" => g1 <= m1 + m2 + m3 + m4;
                 when "0011" => g2 <= m1 + m2 + m3 + m4;
@@ -468,8 +475,9 @@ begin
             p4 <= (others => '0'); p5 <= (others => '0');
             p6 <= (others => '0'); p7 <= (others => '0');
         elsif (rising_edge(clk)) then
-            if (aux_cntr > "0001") then
-                case aux_cntr(2 downto 0) is
+			-- g4 is computed when main_cntr=5 => aux_cntr=2
+            if (aux_cntr > "0001") then		-- if aux_cntr >= 2
+                case aux_cntr(2 downto 0) is	-- aux_cntr(2~0)=2~5
                 when "010" =>
                     tmp1 := std_logic_vector(g0 + g4 + 1024);
                     tmp2 := std_logic_vector(g0 - g4 + 1024);
@@ -485,7 +493,8 @@ begin
                 when others => null;
                 end case;
 
-                case aux_cntr(2 downto 0) is
+				-- tmp >> 11
+                case aux_cntr(2 downto 0) is	-- aux_cntr(2~0)=2~5
                 when "010" =>
                     p0(15 downto 0) <= tmp1(26 downto 11);
                     p7(15 downto 0) <= tmp2(26 downto 11);
