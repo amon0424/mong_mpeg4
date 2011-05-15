@@ -16,15 +16,33 @@ OC=$(SPARCTOOLS)/sparc-elf-objcopy
 
 %.o : %.c
 	$(CC) -c $(CFLAGS) $< -o $@
+	
+include make.target
 
 # Put your application build procedure here
 
-APPNAME = mcomp_tb
+APPNAME0 = mcomp_tb
+APPNAME1 = idct_tb_small
+APPNAME2 = idct_tb
 
-$(APPNAME):  $(APPNAME).o $(OBJS)
+all: $(TARGET)
+
+$(TARGET):  $(TARGET).o $(OBJS)
 	$(CC) $(LFLAGS) -o $@.elf $@.o
 	$(OC) -O srec $@.elf sdram.srec
 
+$(APPNAME0):  $(APPNAME1).o $(OBJS)
+	$(CC) $(LFLAGS) -o $@.elf $@.o
+	$(OC) -O srec $@.elf sdram.srec
+	
+$(APPNAME1):  $(APPNAME1).o $(OBJS)
+	$(CC) $(LFLAGS) -o $@.elf $@.o
+	$(OC) -O srec $@.elf sdram.srec
+
+$(APPNAME2):  $(APPNAME2).o $(OBJS)
+	$(CC) $(LFLAGS) -o $@.elf $@.o
+	$(OC) -O srec $@.elf sdram.srec
+	
 clean:
 	rm *.o
 	rm *.elf

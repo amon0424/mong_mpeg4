@@ -1,0 +1,7 @@
+# Targets:
+#	mcomp_tb
+#	idct_tb_small
+#	idct_tb
+
+# Modify the following line to change testbench make target
+TARGET=idct_tb_small

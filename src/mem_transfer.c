@@ -60,23 +60,45 @@ void
 transfer_16to8copy(uint8 * const dst, const int16 * const src,
                    xint stride)
 {
-    uint32  i, j;
-
+    uint32  j;
+	
     for (j = 0; j < 8; j++)
     {
-        for (i = 0; i < 8; i++)
-        {
-            int16   pixel = src[j * 8 + i];
-            if (pixel < 0)
-            {
-                pixel = 0;
-            }
-            else if (pixel > 255)
-            {
-                pixel = 255;
-            }
-            dst[j * stride + i] = (uint8) pixel;
-        }
+		int16 pixel;
+		int dstIdx = j * stride;
+		int srcIdx = j * 8;
+
+		pixel = src[srcIdx];
+		pixel = (pixel < 0 ? 0 : (pixel > 255 ? 255 : pixel));
+        dst[dstIdx] = (uint8) pixel;
+
+		pixel = src[srcIdx+1];
+		pixel = (pixel < 0 ? 0 : (pixel > 255 ? 255 : pixel));
+        dst[dstIdx+1] = (uint8) pixel;
+
+		pixel = src[srcIdx+2];
+		pixel = (pixel < 0 ? 0 : (pixel > 255 ? 255 : pixel));
+        dst[dstIdx+2] = (uint8) pixel;
+
+		pixel = src[srcIdx+3];
+		pixel = (pixel < 0 ? 0 : (pixel > 255 ? 255 : pixel));
+        dst[dstIdx+3] = (uint8) pixel;
+
+		pixel = src[srcIdx+4];
+		pixel = (pixel < 0 ? 0 : (pixel > 255 ? 255 : pixel));
+        dst[dstIdx+4] = (uint8) pixel;
+
+		pixel = src[srcIdx+5];
+		pixel = (pixel < 0 ? 0 : (pixel > 255 ? 255 : pixel));
+        dst[dstIdx+5] = (uint8) pixel;
+
+		pixel = src[srcIdx+6];
+		pixel = (pixel < 0 ? 0 : (pixel > 255 ? 255 : pixel));
+        dst[dstIdx+6] = (uint8) pixel;
+
+		pixel = src[srcIdx+7];
+		pixel = (pixel < 0 ? 0 : (pixel > 255 ? 255 : pixel));
+        dst[dstIdx+7] = (uint8) pixel;
     }
 }
 
@@ -105,38 +127,62 @@ void
 transfer_16to8add(uint8 * const dst, const int16 * const src,
                   xint stride)
 {
-    uint32  i, j;
+    uint32 j;
 
     for (j = 0; j < 8; j++)
     {
-        for (i = 0; i < 8; i++)
-        {
-            int16   pixel =
-                (int16) dst[j * stride + i] + src[j * 8 + i];
-            if (pixel < 0)
-            {
-                pixel = 0;
-            }
-            else if (pixel > 255)
-            {
-                pixel = 255;
-            }
-            dst[j * stride + i] = (uint8) pixel;
-        }
+		int dstIdx = j * stride;
+		int srcIdx = j * 8;
+
+		int16 pixel;
+		pixel = (int16) dst[dstIdx] + src[srcIdx];
+		pixel = (pixel < 0 ? 0 : (pixel > 255 ? 255 : pixel));
+        dst[dstIdx] = (uint8) pixel;
+
+		pixel = (int16) dst[dstIdx + 1] + src[srcIdx + 1];
+		pixel = (pixel < 0 ? 0 : (pixel > 255 ? 255 : pixel));
+        dst[dstIdx + 1] = (uint8) pixel;
+
+		pixel = (int16) dst[dstIdx + 2] + src[srcIdx + 2];
+		pixel = (pixel < 0 ? 0 : (pixel > 255 ? 255 : pixel));
+        dst[dstIdx + 2] = (uint8) pixel;
+
+		pixel = (int16) dst[dstIdx + 3] + src[srcIdx + 3];
+		pixel = (pixel < 0 ? 0 : (pixel > 255 ? 255 : pixel));
+        dst[dstIdx + 3] = (uint8) pixel;
+
+		pixel = (int16) dst[dstIdx + 4] + src[srcIdx + 4];
+		pixel = (pixel < 0 ? 0 : (pixel > 255 ? 255 : pixel));
+        dst[dstIdx + 4] = (uint8) pixel;
+
+		pixel = (int16) dst[dstIdx + 5] + src[srcIdx + 5];
+		pixel = (pixel < 0 ? 0 : (pixel > 255 ? 255 : pixel));
+        dst[dstIdx + 5] = (uint8) pixel;
+
+		pixel = (int16) dst[dstIdx + 6] + src[srcIdx + 6];
+		pixel = (pixel < 0 ? 0 : (pixel > 255 ? 255 : pixel));
+        dst[dstIdx + 6] = (uint8) pixel;
+
+		pixel = (int16) dst[dstIdx + 7] + src[srcIdx + 6];
+		pixel = (pixel < 0 ? 0 : (pixel > 255 ? 255 : pixel));
+        dst[dstIdx + 7] = (uint8) pixel;
     }
 }
-
 void
 transfer8x8_copy(uint8 * const dst, const uint8 * const src,
                  xint stride)
 {
-    uint32  i, j;
-
+    uint32 j;
     for (j = 0; j < 8; j++)
     {
-        for (i = 0; i < 8; i++)
-        {
-            dst[j * stride + i] = src[j * stride + i];
-        }
+		int idx = j * stride;
+		dst[idx] = src[idx];
+		dst[idx + 1] = src[idx + 1];
+		dst[idx + 2] = src[idx + 2];
+		dst[idx + 3] = src[idx + 3];
+		dst[idx + 4] = src[idx + 4];
+		dst[idx + 5] = src[idx + 5];
+		dst[idx + 6] = src[idx + 6];
+		dst[idx + 7] = src[idx + 7];
     }
 }

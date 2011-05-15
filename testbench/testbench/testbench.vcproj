@@ -25,9 +25,9 @@
 			>
 			<Tool
 				Name="VCNMakeTool"
-				BuildCommandLine="d:\cygwin\bin\bash --login -c &quot;cd /home/codesign/9957520/m4v_dec_ecos/testbench; make; cp -fv sdram.srec /home/codesign/grlib-gpl-1.0.22-b4075/designs/leon3-gr-xc3s-1500-sim&quot;"
-				ReBuildCommandLine="d:\cygwin\bin\bash --login -c &quot;cd /home/codesign/9957520/m4v_dec_ecos/testbench; make clean; make;cp -fv sdram.srec /home/codesign/grlib-gpl-1.0.22-b4075/designs/leon3-gr-xc3s-1500-sim&quot;"
-				CleanCommandLine="d:\cygwin\bin\bash --login -c &quot;cd /home/codesign/9957520/m4v_dec_ecos/testbench; make clean&quot;"
+				BuildCommandLine="c:\cygwin\bin\bash --login -c &quot;cd /home/codesign/9957520/m4v_dec_ecos/testbench; make; cp -fv sdram.srec /home/codesign/grlib-gpl-1.0.22-b4075/designs/leon3-gr-xc3s-1500-sim&quot;"
+				ReBuildCommandLine="c:\cygwin\bin\bash --login -c &quot;cd /home/codesign/9957520/m4v_dec_ecos/testbench; make clean; make;  cp -fv sdram.srec /home/codesign/grlib-gpl-1.0.22-b4075/designs/leon3-gr-xc3s-1500-sim&quot;"
+				CleanCommandLine="c:\cygwin\bin\bash --login -c &quot;cd /home/codesign/9957520/m4v_dec_ecos/testbench; make clean&quot;"
 				Output=""
 				PreprocessorDefinitions=""
 				IncludeSearchPath=""
@@ -121,6 +121,14 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
+				RelativePath="..\idct_tb.c"
+				>
+			</File>
+			<File
+				RelativePath="..\idct_tb_small.c"
+				>
+			</File>
+			<File
 				RelativePath="..\mcomp_tb.c"
 				>
 			</File>
@@ -137,6 +145,14 @@
 			UniqueIdentifier="{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}"
 			>
 		</Filter>
+		<File
+			RelativePath="..\make.target"
+			>
+		</File>
+		<File
+			RelativePath="..\Makefile"
+			>
+		</File>
 	</Files>
 	<Globals>
 	</Globals>

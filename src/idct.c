@@ -1,5 +1,63 @@
 #include <string.h>
 
+#define USE_HW_IDCT 1
+
+#if USE_HW_IDCT  /* ========== HW IDCT ============ */
+
+/* HW accelerator interface */
+long *F_array            = (long *) 0xb0100000;
+long *p_array            = (long *) 0xb0100010;
+volatile long *action   = (long *) 0xb0100020;
+
+/* 2-D IDCT transpose memory */
+static short tmem[64];
+
+void
+idct(short *block)
+{
+    int row, col;
+
+    /* row transform */
+    for (row = 0; row < 8; row++)
+    {
+#if 0 /* memcpy() has problems under eCos 1.0.8 */
+        memcpy((void *) F_array, (void *) (block+(row<<3)), sizeof(short)<<3);
+#else
+        for (col = 0; col < 8; col+=2)
+        {
+            F_array[col>>1] = *((long *) (block+(row<<3)+col));
+        }
+#endif
+        *action = 1;
+        while (*action) /* do nothing */;
+        for (col = 0; col < 8; col++)
+        {
+            tmem[(col<<3)+row] = ((short *) p_array)[col];
+        }
+    }
+
+    /* column transform */
+    for (row = 0; row < 8; row++)
+    {
+#if 0 /* memcpy() has problems under eCos 1.0.8 */
+        memcpy((void *) F_array, (void *) (tmem+(row<<3)), sizeof(short)<<3);
+#else
+        for (col = 0; col < 8; col += 2)
+        {
+            F_array[col>>1] = *((long *) (tmem+(row<<3)+col));
+        }
+#endif
+        *action = 1;
+        while (*action) /* do nothing */;
+        for (col = 0; col < 8; col++)
+        {
+            block[(col<<3)+row] = ((short *) p_array)[col];
+        }
+    }
+}
+
+#else /* ========== SW IDCT ============ */
+
 static int c0 = 1448; /* 2048 * 0.7071068 */
 static int c1 = 1004; /* 2048 * 0.4903926 */
 static int c2 =  946; /* 2048 * 0.4619398 */
@@ -67,3 +125,4 @@ idct(short *block)
         block[idx] = (v < -256)? -256 : ((v > 255)? 255 : v);
 	}
 }
+#endif
