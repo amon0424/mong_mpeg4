@@ -1,3 +1,4 @@
 video_acc.vhd
 mcomp.vhd
 idct.vhd
+bram.vhd
