@@ -2,6 +2,7 @@
 #	mcomp_tb
 #	idct_tb_small
 #	idct_tb
+#	idct2d_fsm_tb
 
 # Modify the following line to change testbench make target
-TARGET=idct_tb_small
+TARGET=idct2d_fsm_tb
