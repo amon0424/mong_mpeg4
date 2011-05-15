@@ -51,7 +51,35 @@ architecture rtl of idct2d is
 	signal action : std_logic;
 	
 begin
-	 -- the wr_addr_fetch process latch the write address so that it
+
+	ahbso.hresp   <= "00";
+    ahbso.hsplit  <= (others => '0');
+    ahbso.hirq    <= (others => '0');
+    ahbso.hcache  <= '0';
+    ahbso.hconfig <= hconfig;
+    ahbso.hindex  <= ahbndx;
+	---------------------------------------------------------------------
+    --  Register File Management Begins Here
+    ---------------------------------------------------------------------
+    -- This process handles read/write of the following registers:
+    --    1. Eight 16-bit input idct coefficient registers (F0 ~ F7)
+    --    2. Eight 16-bit output pixel values (p0 ~ p7)
+    --    3. A 1-bit register, action, signals the execution and
+    --       completion of the IDCT logic
+    --
+    ready_ctrl : process (clk, rst)
+    begin
+        if rst = '0' then
+            ahbso.hready <= '1';
+        elsif rising_edge(clk ) then
+            if (ahbsi.hsel(ahbndx) and ahbsi.htrans(1)) = '1' then
+                ahbso.hready <= '1'; -- you should control this signal for
+                                     -- multi-cycle data processing
+            end if;
+        end if;
+    end process;
+	
+	-- the wr_addr_fetch process latch the write address so that it
     -- can be used in the data fetch cycle as the destination pointer
     --
     wr_addr_fetch : process (clk, rst)
@@ -122,7 +150,7 @@ begin
 		end if;
 	end process FSM1;
 	
-	process(prev_state, action, rst)
+	process(prev_state, prev_substate, action, rst)
 	begin
 		if (rst='0') then
 			next_state <= ready;
@@ -133,14 +161,18 @@ begin
 			when ready =>
 				if (action='1') then
 					next_state <= stage0;
+					next_substate <= read_f;
 					stage <= "00"; 
+					stage_counter <= "00000";
 				else
 					next_state <= ready;
 				end if;
 			when stage0 =>
 				if (stage_counter > 7) then
 					next_state <= stage1;
-					stage <= "00";
+					next_substate <= read_f;
+					stage <= "01";
+					stage_counter <= "00000";
 				else
 					next_state <= stage0;
 				end if;
@@ -155,19 +187,15 @@ begin
 			end case;
 			
 			-- sub state
-			if (stage(1) = '0') then
+			if (stage(1) = '0' and stage_counter < 8) then
 				case prev_substate is
 				when read_f =>
 					next_substate <= idct_1d;
 				when idct_1d =>
 					next_substate <= write_p;
 				when write_p =>
-					if( stage_counter < "01000" ) then
-						stage_counter <= stage_counter + 1;
-						next_substate <= read_f;
-					else
-						stage_counter <= "00000";
-					end if;
+					next_substate <= read_f;
+					stage_counter <= stage_counter + 1;
 				when others => null;
 				end case;
 			end if;
