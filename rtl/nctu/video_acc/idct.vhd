@@ -128,7 +128,7 @@ begin
     ahbso.hconfig <= hconfig;
     ahbso.hindex  <= ahbndx;
 
-    action_two <= '1' when (action = '1' and main_cntr > "00011") else '0';
+    action_two <= '1' when (action = '1' and main_cntr > "00011") else '0';	-- when main_cntr >= 4 (g0-g3 computed), enable action2
 
 -- pragma translate_off
 -- The following signals are used for GHDL simulation,
@@ -294,7 +294,7 @@ begin
         if (rst = '0') then
             aux_cntr <= "0000";
         elsif (rising_edge(clk)) then
-            if (main_cntr > "00011") then	-- if main_cntr >= 4
+            if (main_cntr > "00011") then	-- if main_cntr >= 4 ( g0~g3 computed )
                 aux_cntr <= aux_cntr + 1;
             else
                 aux_cntr <= "0000";
@@ -321,7 +321,7 @@ begin
                 hv_nx_state <= init_hv;
             end if;
         when calc_hv =>			-- calc_hv
-            if (main_cntr > "00111") then	-- if main_cntr > 7
+            if (main_cntr > "00111") then	-- if main_cntr > 7 ( g0~g7 computed )
                 hv_nx_state <= init_hv;		-- change state to init_hv
             else
                 hv_nx_state <= calc_hv;
@@ -349,8 +349,8 @@ begin
                 g2p_nx_state <= init_g2p;
             end if;
         when calc_g2p =>		-- calc_g2p
-            if (aux_cntr > "0011") then		-- if aux_cntr > 3
-                g2p_nx_state <= init_g2p;	-- change state toinit_g2p
+            if (aux_cntr > "0011") then		-- if aux_cntr >= 4	( g0~g6 computed )
+                g2p_nx_state <= init_g2p;	-- change state to init_g2p
             else
                 g2p_nx_state <= calc_g2p;
             end if;
