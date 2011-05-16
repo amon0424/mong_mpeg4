@@ -34,3 +34,4 @@ m4v_dec_Data*/
 *.mcp
 *.srec
 rtl/nctu/nctu_prj/nctu_xdb/tmp/*
+*.lnk
