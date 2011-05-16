@@ -127,6 +127,8 @@ begin
 				else
 					ahbso.hready <= '1';
 				end if;
+			elsif write_done = '1' then
+				ahbso.hready <= '1';
 			end if;
 		end if;
 	end process;
