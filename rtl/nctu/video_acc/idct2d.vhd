@@ -148,12 +148,16 @@ begin
 			-- writing_block = '0';
 		elsif rising_edge(clk) then
 			if (ahbsi.hsel(ahbndx) and ahbsi.htrans(1) and
-				ahbsi.hready and ahbsi.hwrite) = '1' then
-				-- if ahbsi.haddr(7 downto 2) >= "000000" and ahbsi.haddr(7 downto 2) < "100000" then
+				ahbsi.hready) = '1' then
+				--if ahbsi.haddr(7 downto 2) >= "000000" and ahbsi.haddr(7 downto 2) < "100000" then
 					-- writing_block = '1';
 				-- end if
 				addr_wr <= ahbsi.haddr;
-				wr_valid <= '1';
+				if ahbsi.hwrite = '1' then
+					wr_valid <= '1';
+				else
+					wr_valid <= '0';
+				end if;
 			else
 				-- writing_block = '0';
 				wr_valid <= '0';
@@ -322,12 +326,12 @@ begin
     --  Data Path Begins Here
     ---------------------------------------------------------------------
 	
-	iram_addr1 <= ahbsi.haddr(6 downto 1) 	when stage = "11" else "000000";
-	iram_addr2 <= ahbsi.haddr(6 downto 1)+1 when stage = "11" else "000000";
+	iram_addr1 <= addr_wr(6 downto 1) 	when stage = "11" else "000000";
+	iram_addr2 <= addr_wr(6 downto 1)+1 when stage = "11" else "000000";
 	iram_di1 <=  ahbsi.hwdata(31 downto 16) when stage = "11" else ( others => '0' );
 	iram_di2 <=  ahbsi.hwdata(15 downto 0) 	when stage = "11" else ( others => '0' );
-	iram_we1 <= '1' when (wr_valid = '1' and stage = "11" and ahbsi.haddr(7 downto 2) >= "000000" and ahbsi.haddr(7 downto 2) < "100000") else '0';
-	iram_we2 <= '1' when (wr_valid = '1'and stage = "11" and ahbsi.haddr(7 downto 2) >= "000000" and ahbsi.haddr(7 downto 2) < "100000") else '0';
+	iram_we1 <= '1' when (wr_valid = '1' and stage = "11" and addr_wr(7 downto 2) >= "000000" and addr_wr(7 downto 2) < "100000") else '0';
+	iram_we2 <= '1' when (wr_valid = '1'and stage = "11" and addr_wr(7 downto 2) >= "000000" and addr_wr(7 downto 2) < "100000") else '0';
 	
 --	ahbso.hrdata <= (iram_do1 & iram_do2) 	when stage = "11" else ( others => '0' );
 	
