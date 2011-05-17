@@ -11,14 +11,19 @@ short block[] = {
 int
 main(int argc, char **argv)
 {
+	int result;
 	memcpy((void *) F_array, (void *) block, sizeof(short)<<3);
 
 	*action=1;
 	while(*action);
 
-	*((long*)(block[0])) = F_array[0];
-	*((long*)(block[2])) = F_array[1];
-	*((long*)(block[4])) = F_array[2];
-	*((long*)(block[6])) = F_array[3];
+	result = F_array[0];
+	block[0] = (short)(result >> 16);
+	block[1] = (short)(result);
+
+	result = F_array[1];
+	block[2] = (short)(result >> 16);
+	block[3] = (short)(result);
+
 	printf("%d,%d,%d,%d", block[0], block[1], block[2], block[3]);
 }
