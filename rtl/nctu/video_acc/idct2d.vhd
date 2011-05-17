@@ -78,10 +78,7 @@ architecture rtl of idct2d is
 	signal iram_do2 : std_logic_vector(15 downto 0);
 	
 	signal writing_block : std_logic;
-	
-	-- signal write_done : std_logic;
-	-- signal write_data : std_logic_vector(15 downto 0);
-	-- signal write_addr : std_logic_vector(5 downto 0);
+	signal reading_block : std_logic; -- "11" for done, "10" for reading, "00" for idle
 begin
 
 	ahbso.hresp   <= "00";
@@ -90,9 +87,7 @@ begin
 	ahbso.hcache  <= '0';
 	ahbso.hconfig <= hconfig;
 	ahbso.hindex  <= ahbndx;
-	
-	
-	
+
 	iram : BRAM
 	port map (
 		CLK1		=> clk,
@@ -122,15 +117,14 @@ begin
 			ahbso.hready <= '1';
 		elsif rising_edge(clk ) then
 			if (ahbsi.hsel(ahbndx) and ahbsi.htrans(1)) = '1' then
-				-- if writing pixel, we need one more cycle
-				-- if (ahbsi.hwrite = '1' and ahbsi.haddr(7 downto 2) >= "000000" and ahbsi.haddr(7 downto 2) < "100000") then
-					-- ahbso.hready <= '0'; -- you should control this signal for
-										-- multi-cycle data processing
-				-- else
+				-- if reading block, we need one more cycle
+				if (ahbsi.hwrite = '0' and ahbsi.haddr(7 downto 2) >= "000000" and ahbsi.haddr(7 downto 2) < "100000") then
+					ahbso.hready <= '0';
+				else
 					ahbso.hready <= '1';
-				--end if;
-			-- elsif write_done = '1' then
-				-- ahbso.hready <= '1';
+				end if;
+			elsif reading_block = '1' then
+				ahbso.hready <= '1';
 			end if;
 		end if;
 	end process;
@@ -148,18 +142,10 @@ begin
 			-- writing_block = '0';
 		elsif rising_edge(clk) then
 			if (ahbsi.hsel(ahbndx) and ahbsi.htrans(1) and
-				ahbsi.hready) = '1' then
-				--if ahbsi.haddr(7 downto 2) >= "000000" and ahbsi.haddr(7 downto 2) < "100000" then
-					-- writing_block = '1';
-				-- end if
+				ahbsi.hready and ahbsi.hwrite) = '1' then
 				addr_wr <= ahbsi.haddr;
-				if ahbsi.hwrite = '1' then
-					wr_valid <= '1';
-				else
-					wr_valid <= '0';
-				end if;
+				wr_valid <= '1';
 			else
-				-- writing_block = '0';
 				wr_valid <= '0';
 			end if;
 		end if;
@@ -172,13 +158,6 @@ begin
 	begin
 		if (rst = '0') then
 			action <= '0';
-			-- iram_we1 <= '0';
-			-- iram_we2 <= '0';
-			-- iram_addr1 <= "000000";
-			-- iram_addr2 <= "000000";
-			-- iram_di1 <= (others => '0');
-			-- iram_di2 <= (others => '0');
-			-- write_done <= '1';
 		elsif rising_edge(clk) then
 			if (stage = "11") then
 				action <= '0';
@@ -186,51 +165,14 @@ begin
 			if (wr_valid = '1') then
 				-- if addr/2 is 0~63 => addr/4 is 0~31
 				if addr_wr(7 downto 2) >= "000000" and addr_wr(7 downto 2) < "100000" then
-					-- iram_addr1 <= addr_wr(6 downto 1);
-					-- iram_addr2 <= addr_wr(6 downto 1) + 1;
-					-- iram_di1 <=  ahbsi.hwdata(31 downto 16);
-					-- iram_di2 <=  ahbsi.hwdata(15 downto 0);
-					-- iram_we1 <= '1';
-					-- iram_we2 <= '1';
-					--write_done <= '1';	
-					-- write_addr <= addr_wr(6 downto 1) + 1;
-					-- write_data <= ahbsi.hwdata(15 downto 0);
-					-- write_done <= '0';	
+					-- write to bram	
 				-- if addr/4 is 32
 				elsif addr_wr(7 downto 2) = "100000" then
 					action <= ahbsi.hwdata(0);
-					-- iram_we1 <= '0';
-					-- iram_we2 <= '0';
-				-- else
-					-- iram_we1 <= '0';
-					-- iram_we2 <= '0';
 				end if;
-			-- elsif (write_done = '0') then
-				-- iram_addr1 	<= addr_wr(6 downto 1) + 1;
-				-- iram_di1 	<= ahbsi.hwdata(31 downto 16);
-				-- iram_we1 	<= '1';
-				-- write_done 	<= '1';
-			-- else
-				-- iram_we1 <= '0';
-				-- iram_we2 <= '0';
 			end if;
 		end if;
 	end process;
-	
-
-	-- write_iram: process (clk, rst)
-	-- begin
-		-- if (rst = '0') then
-			-- write_done <= '1';
-		-- elsif rising_edge(clk) then
-			-- if(write_done = '0')then
-				-- iram_addr1 	<= write_addr;
-				-- iram_di1 	<= write_data;
-				-- iram_we1 	<= '1';
-				-- write_done 	<= '1';
-			-- end if;
-		-- end if;
-	-- end process;
 	
 	-- for a read operation, we must start driving the data bus
 	-- as soon as the device is selected; this way, the data will
@@ -240,18 +182,22 @@ begin
 	begin
 		if (rst = '0') then
 			ahbso.hrdata <= (others => '0');
+			reading_block <= '0';
 		elsif rising_edge(clk) then
 			if ((ahbsi.hsel(ahbndx) and ahbsi.htrans(1) and
 				ahbsi.hready and (not ahbsi.hwrite)) = '1') then
-				-- if addr/2 is 0~63 => addr/4 is 0~31
+				-- if addr/2 is 0~63 => addr/4 is 0~31, wait one cycle for ram reading
 				if ahbsi.haddr(7 downto 2) >= "000000" and ahbsi.haddr(7 downto 2) < "100000" then
-					ahbso.hrdata(31 downto 16) <= iram_do1;
-					ahbso.hrdata(15 downto 0) <= iram_do2;
+					reading_block <= '1';
 				-- if addr/4 is 32
 				elsif ahbsi.haddr(7 downto 2) = "100000" then
 					ahbso.hrdata(31 downto 1) <= (others => '0');
 					ahbso.hrdata(0) <= action;
 				end if;
+			elsif (reading_block = '1') then
+				ahbso.hrdata(31 downto 16) <= iram_do1;
+				ahbso.hrdata(15 downto 0) <= iram_do2;
+				reading_block <= '0';
 			end if;
 		end if;
 	end process;
@@ -326,14 +272,14 @@ begin
     --  Data Path Begins Here
     ---------------------------------------------------------------------
 	
-	iram_addr1 <= addr_wr(6 downto 1) 	when stage = "11" else "000000";
-	iram_addr2 <= addr_wr(6 downto 1)+1 when stage = "11" else "000000";
+	iram_addr1 <= ahbsi.haddr(6 downto 1) 	when stage = "11" else "000000";
+	iram_addr2 <= ahbsi.haddr(6 downto 1)+1 when stage = "11" else "000000";
 	iram_di1 <=  ahbsi.hwdata(31 downto 16) when stage = "11" else ( others => '0' );
 	iram_di2 <=  ahbsi.hwdata(15 downto 0) 	when stage = "11" else ( others => '0' );
-	iram_we1 <= '1' when (wr_valid = '1' and stage = "11" and addr_wr(7 downto 2) >= "000000" and addr_wr(7 downto 2) < "100000") else '0';
-	iram_we2 <= '1' when (wr_valid = '1'and stage = "11" and addr_wr(7 downto 2) >= "000000" and addr_wr(7 downto 2) < "100000") else '0';
-	
---	ahbso.hrdata <= (iram_do1 & iram_do2) 	when stage = "11" else ( others => '0' );
+	iram_we1 <= '1' when ((ahbsi.hsel(ahbndx) and ahbsi.htrans(1) and ahbsi.hready and ahbsi.hwrite) = '1' 
+				and stage = "11" and ahbsi.haddr(7 downto 2) >= "000000" and ahbsi.haddr(7 downto 2) < "100000") else '0';
+	iram_we2 <= iram_we1;
+
 	
 -- pragma translate_off
 	bootmsg : report_version
