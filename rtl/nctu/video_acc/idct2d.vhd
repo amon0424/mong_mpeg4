@@ -189,7 +189,7 @@ begin
 		if (rst = '0') then
 			action <= '0';
 		elsif rising_edge(clk) then
-			if (prev_state = stage0 and next_state = ready) then
+			if (prev_state = stage1 and next_state = ready) then
 				action <= '0';
 			end if;
 			if (wr_valid = '1') then
@@ -250,7 +250,7 @@ begin
 			when stage0 =>
 				stage <= "00";
 			when stage1 =>
-				stage <= "10";
+				stage <= "01";
 			when others => null;
 			end case;
 		end if;
@@ -328,16 +328,29 @@ begin
 	-- for interface block ram
 	iram_addr1 <= 	ahbsi.haddr(6 downto 1) when stage = "11" else 	--write
 					row_index(5 downto 0) when stage = "00" else	--read, first write
-					col_index(5 downto 0) when stage = "00" else	--write
+					col_index(5 downto 0) when stage = "01" else	--write
 					"000000";
 	iram_addr2 <= 	iram_addr1 + 1 when stage="11" or stage="00" else	--read, first write
 					iram_addr1 + 8 when stage="01" else					--write
 					"000000";
 	
-	iram_di1 <=  ahbsi.hwdata(31 downto 16) when stage = "11" else ( others => '0' );
-	iram_di2 <=  ahbsi.hwdata(15 downto 0) 	when stage = "11" else ( others => '0' );
-	iram_we1 <= '1' when ((ahbsi.hsel(ahbndx) and ahbsi.htrans(1) and ahbsi.hready and ahbsi.hwrite) = '1' 
-				and stage = "11" and ahbsi.haddr(7 downto 2) >= "000000" and ahbsi.haddr(7 downto 2) < "100000") else '0';
+	iram_di1 <=	ahbsi.hwdata(31 downto 16) when stage = "11" else
+				p0 when stage = "01" and col_index(5 downto 3)="000" else
+				p2 when stage = "01" and col_index(5 downto 3)="010" else
+				p4 when stage = "01" and col_index(5 downto 3)="100" else
+				p6 when stage = "01" and col_index(5 downto 3)="110" else
+				( others => '0' );
+	iram_di2 <=  ahbsi.hwdata(15 downto 0) 	when stage = "11" else
+				p1 when stage = "00" and col_index(5 downto 3)="000" else	
+				p3 when stage = "00" and col_index(5 downto 3)="010" else
+				p5 when stage = "00" and col_index(5 downto 3)="100" else
+				p7 when stage = "00" and col_index(5 downto 3)="110" else
+				( others => '0' );
+	iram_we1 <= '1' when (stage = "11" and(ahbsi.hsel(ahbndx) and ahbsi.htrans(1) and ahbsi.hready and ahbsi.hwrite) = '1' 
+							and stage = "11" and ahbsi.haddr(7 downto 2) >= "000000" and ahbsi.haddr(7 downto 2) < "100000") 
+						or
+						(stage="01" and  prev_substate=write_p)
+				else '0';
 	iram_we2 <= iram_we1;
 
 	-- for transpose block ram
@@ -377,12 +390,13 @@ begin
 							read_count <= "000";
 						end if;
 						row_index <= row_index + 2;
-					elsif(next_state /= prev_state)then				-- if we just change from another state
-						row_index <= (others => '0');				-- re-count the row_index
+					elsif(next_state /= prev_state)then				-- if we will change to stage0/1
+						row_index <= (others => '0');				-- re-count the row_index, read_count
+						read_count <= "000";
 					end if;
 				--else
 				--	row_index <= (others => '0');
-				--end if;
+				--end if;	
 			end if;
 		end if;
 	end process row_agu;
@@ -393,7 +407,7 @@ begin
 			col_index <= (others => '0');
 			-- f_index <= 0;
 		elsif (rising_edge(clk)) then
-			if ( next_state = stage0 or next_state = stage1) then
+			if ( next_state = stage0 or next_state = stage1) then		-- if we will change to stage0/1 or in the same stage
 				--if(stage_counter < 8)then
 					if(prev_substate = write_p) then		-- if we are writing
 						if( next_substate = write_p) then	-- and if we are in the same column
@@ -414,6 +428,8 @@ begin
 	
 	
 	read_f_process: process(rst, clk)
+	variable ram_out1 : std_logic_vector(15 downto 0);
+	variable ram_out2 : std_logic_vector(15 downto 0);
 	begin
 		if (rst='0') then
 			F0 <= (others => '0'); F1 <= (others => '0');
@@ -422,19 +438,26 @@ begin
             F6 <= (others => '0'); F7 <= (others => '0');
 		elsif (rising_edge(clk)) then
 			if(prev_substate = read_f) then
+				if prev_state = stage0 then 
+					ram_out1 := iram_do1; 
+					ram_out2 := iram_do2;
+				else 
+					ram_out1 := tram_do1;
+					ram_out2 := tram_do2;
+				end if;
 				case read_count(1 downto 0) is
 				when "00" =>
-					F0 <= iram_do1;
-					F1 <= iram_do2;
+					F0 <= ram_out1;
+					F1 <= ram_out2;
 				when "01" =>
-					F2 <= iram_do1;
-					F3 <= iram_do2;
+					F2 <= ram_out1;
+					F3 <= ram_out2;
 				when "10" =>
-					F4 <= iram_do1;
-					F5 <= iram_do2;
+					F4 <= ram_out1;
+					F5 <= ram_out2;
 				when "11" =>
-					F6 <= iram_do1;
-					F7 <= iram_do2;
+					F6 <= ram_out1;
+					F7 <= ram_out2;
 				when others => null;
 				end case;
 			end if;
@@ -451,8 +474,6 @@ begin
             p6 <= (others => '1'); p7 <= (others => '0');
 		end if;
 	end process write_p_process;
-	
---	ahbso.hrdata <= (iram_do1 & iram_do2) 	when stage = "11" else ( others => '0' );
 
 -- pragma translate_off
 	bootmsg : report_version
