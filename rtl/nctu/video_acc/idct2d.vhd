@@ -51,6 +51,24 @@ architecture rtl of idct2d is
 	signal action : std_logic;
 	
 	-----------------------------------------------------------------
+	-- IDCT
+	-----------------------------------------------------------------
+	component idct is
+		port(
+			rst, clk: in std_logic;
+			F0, F1, F2, F3, F4, F5, F6, F7: in std_logic_vector(15 downto 0);
+			p0, p1, p2, p3, p4, p5, p6, p7: out std_logic_vector(15 downto 0);
+			action: inout std_logic;
+			control: in std_logic 	
+		);
+	end component idct;
+	
+	signal action_idct, control_idct : std_logic;
+	signal F0, F1, F2, F3, F4, F5, F6, F7: std_logic_vector(15 downto 0);
+	signal p0, p1, p2, p3, p4, p5, p6, p7: std_logic_vector(15 downto 0);
+	
+	
+	-----------------------------------------------------------------
 	-- BRAM
 	-----------------------------------------------------------------
 	component BRAM
@@ -85,16 +103,12 @@ architecture rtl of idct2d is
 	signal tram_di2 : std_logic_vector(15 downto 0);
 	signal tram_do1 : std_logic_vector(15 downto 0);
 	signal tram_do2 : std_logic_vector(15 downto 0);
+
+	signal reading_block : std_logic;
 	
-	signal writing_block : std_logic;
-	signal reading_block : std_logic; -- "11" for done, "10" for reading, "00" for idle
-	
+	signal read_count : std_logic_vector(2 downto 0);
 	signal row_index : std_logic_vector(6 downto 0);
 	signal col_index : std_logic_vector(6 downto 0);
-	signal F0, F1, F2, F3, F4, F5, F6, F7: std_logic_vector(15 downto 0);
-	signal p0, p1, p2, p3, p4, p5, p6, p7: std_logic_vector(15 downto 0);
-	signal p : std_logic_vector(31 downto 0);
-	signal read_count : std_logic_vector(2 downto 0);
 begin
 
 	ahbso.hresp   <= "00";
@@ -130,6 +144,15 @@ begin
 		Data_In2	=> tram_di2,
 		Data_Out1	=> tram_do1,
 		Data_Out2	=> tram_do2
+	);
+	
+	my_idct_1d : idct
+	port map (
+		rst, clk, 
+		F0, F1, F2, F3, F4, F5, F6, F7,
+		p0, p1, p2, p3, p4, p5, p6, p7,
+		action_idct,
+		control_idct
 	);
 	
 	---------------------------------------------------------------------
@@ -169,7 +192,6 @@ begin
 		if rst = '0' then
 			addr_wr <= (others => '0');
 			wr_valid <= '0';
-			-- writing_block = '0';
 		elsif rising_edge(clk) then
 			if (ahbsi.hsel(ahbndx) and ahbsi.htrans(1) and
 				ahbsi.hready and ahbsi.hwrite) = '1' then
@@ -256,7 +278,22 @@ begin
 		end if;
 	end process FSM1;
 	
-	process(prev_state, prev_substate, row_index, col_index, action, rst)
+	idct_control_procss : process(rst, clk)
+	begin
+		if (rst='0') then
+			action_idct <= '0';
+		elsif (rising_edge(clk)) then
+			if( prev_substate = read_f and next_substate = idct_1d ) then
+				control_idct <= '1';
+				action_idct <= '1';
+			else
+				control_idct <= '0';
+				action_idct <= 'Z';
+			end if;
+		end if;
+	end process;
+	
+	process(prev_state, prev_substate, row_index, col_index, action, action_idct, rst)
 	begin
 		if (rst='0') then
 			next_state <= ready;
@@ -299,14 +336,22 @@ begin
 						next_substate <= read_f;
 					end if;
 				when idct_1d =>
-					next_substate <= write_p;
+					if(action_idct = '1')then
+						next_substate <= idct_1d;
+					else
+						next_substate <= write_p;
+					end if;
 				when write_p =>
 					--if(stage_counter < 8) then
 						if(col_index(5 downto 3) = "110")then		-- if col_index reach last row
 							if( stage_counter < 7) then					-- if we not reach the last column
 								stage_counter <= stage_counter + 1;
 							end if;
-							next_substate <= read_f;					-- go to read next row
+							if(prev_state = stage1 and col_index(5 downto 3) = "110" and stage_counter = 7) then
+								next_substate <= ready;
+							else
+								next_substate <= read_f;					-- go to read next row
+							end if;
 						else
 							next_substate <= write_p;				-- else continue write 
 						end if;

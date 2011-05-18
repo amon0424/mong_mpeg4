@@ -45,30 +45,16 @@ library techmap;
 use techmap.gencomp.all;
 
 entity idct is
-    generic (
-        ahbndx  : integer := 0;
-        ahbaddr : integer := 0;
-        addrmsk : integer := 16#fff#;
-        verid   : integer := 0;
-        irq_no  : integer := 0
-    );
-
     port(
-        rst     : in  std_ulogic;
-        clk     : in  std_ulogic;
-        ahbsi   : in  ahb_slv_in_type;
-        ahbso   : out ahb_slv_out_type
+		rst, clk: in std_logic;
+		F0, F1, F2, F3, F4, F5, F6, F7: in std_logic_vector(15 downto 0);
+		p0, p1, p2, p3, p4, p5, p6, p7: out std_logic_vector(15 downto 0);
+		action: inout std_logic;
+		control:	in std_logic 	-- 0 for write action, 1 for read action
     );
 end entity idct;
 
 architecture rtl of idct is
-
-    constant hconfig : ahb_config_type := (
-      0      => ahb_device_reg (VENDOR_NCTU, NCTU_IDCT, 0, verid, irq_no),
-      4      => ahb_membar(ahbaddr, '1', '0', addrmsk),
-      others => X"00000000"
-    );
-
     -- AMBA bus control signals
     signal wr_valid : std_logic; -- is the logic selected by a master
     signal addr_wr : std_logic_vector(31 downto 0);
@@ -81,12 +67,12 @@ architecture rtl of idct is
     signal hv_pr_state, hv_nx_state: state;
     signal g2p_pr_state, g2p_nx_state: state;
 
-    signal F0, F1, F2, F3, F4, F5, F6, F7: std_logic_vector(15 downto 0);
+   
     signal g0, g1, g2, g3, g4, g5, g6, g7: signed(31 downto 0);
-    signal p0, p1, p2, p3, p4, p5, p6, p7: std_logic_vector(15 downto 0);
+	
     signal v0, v1, v2, v3: std_logic_vector(15 downto 0);
     signal m1, m2, m3, m4: signed(31 downto 0);
-    signal action: std_logic;
+    
     signal action_two: std_logic;
     signal main_cntr: unsigned(4 downto 0);
     signal aux_cntr: unsigned(3 downto 0);
@@ -108,37 +94,8 @@ architecture rtl of idct is
     constant HL3 : signed(15 downto 0) :=  X"00C8";	--200
 
     signal ack_temp: std_ulogic;
-
--- pragma translate_off
--- The following signals are used for GHDL simulation,
--- you don't need these for ModleSim simulation
-    signal hsel    : std_logic_vector(0 to NAHBSLV-1); -- slave select
-    signal haddr   : std_logic_vector(31 downto 0);    -- address bus (byte)
-    signal hwrite  : std_ulogic;                       -- read/write
-    signal hwdata  : std_logic_vector(31 downto 0);    -- write data bus
-    signal hiready : std_ulogic;                       -- transfer done
--- pragma translate_on
-
 begin
-
-    ahbso.hresp   <= "00";
-    ahbso.hsplit  <= (others => '0');
-    ahbso.hirq    <= (others => '0');
-    ahbso.hcache  <= '0';
-    ahbso.hconfig <= hconfig;
-    ahbso.hindex  <= ahbndx;
-
     action_two <= '1' when (action = '1' and main_cntr > "00011") else '0';	-- when main_cntr >= 4 (g0-g3 computed), enable action2
-
--- pragma translate_off
--- The following signals are used for GHDL simulation,
--- you don't need these for ModleSim simulation
-    hsel    <= ahbsi.hsel;
-    haddr   <= ahbsi.haddr;
-    hwrite  <= ahbsi.hwrite;
-    hwdata  <= ahbsi.hwdata;
-    hiready <= ahbsi.hready;
--- pragma translate_on
 
     ---------------------------------------------------------------------
     --  Register File Management Begins Here
@@ -150,122 +107,21 @@ begin
     --       completion of the IDCT logic
     --
 
-    ready_ctrl : process (clk, rst)
-    begin
-        if rst = '0' then
-            ahbso.hready <= '1';
-        elsif rising_edge(clk ) then
-            if (ahbsi.hsel(ahbndx) and ahbsi.htrans(1)) = '1' then
-                ahbso.hready <= '1'; -- you should control this signal for
-                                     -- multi-cycle data processing
-            end if;
-        end if;
-    end process;
-
-    -- the wr_addr_fetch process latch the write address so that it
-    -- can be used in the data fetch cycle as the destination pointer
-    --
-    wr_addr_fetch : process (clk, rst)
-    begin
-        if rst = '0' then
-            addr_wr <= (others => '0');
-            wr_valid <= '0';
-        elsif rising_edge(clk) then
-            if (ahbsi.hsel(ahbndx) and ahbsi.htrans(1) and
-                ahbsi.hready and ahbsi.hwrite) = '1' then
-                addr_wr <= ahbsi.haddr;
-                wr_valid <= '1';
-            else
-                wr_valid <= '0';
-            end if;
-        end if;
-    end process;
-
-    -- for register writing, data fetch (into registers) should happens one
-    -- cycle after the address fetch process.
-    --
-    write_reg_process : process (clk, rst)
+    action_control_process : process (clk, rst)
     begin
         if (rst = '0') then
-            F0 <= (others => '0'); F1 <= (others => '0');
-            F2 <= (others => '0'); F3 <= (others => '0');
-            F4 <= (others => '0'); F5 <= (others => '0');
-            F6 <= (others => '0'); F7 <= (others => '0');
-
-            action <= '0';
-
+            if control = '0' then	-- read
+				action <= '0';
+			else					-- write
+				action <= 'Z';
+			end if;
         elsif rising_edge(clk) then
             if (main_cntr > "00111") then
-                action <= '0';
-            end if;
-
-            if (wr_valid = '1') then
-                if addr_wr(5) = '0' then -- write input coefficient registers
-                    if    addr_wr(4 downto 2) = "000" then
-                        F0 <= ahbsi.hwdata(31 downto 16);
-                        F1 <= ahbsi.hwdata(15 downto 0);
-                    elsif addr_wr(4 downto 2) = "001" then
-                        F2 <= ahbsi.hwdata(31 downto 16);
-                        F3 <= ahbsi.hwdata(15 downto 0);
-                    elsif addr_wr(4 downto 2) = "010" then
-                        F4 <= ahbsi.hwdata(31 downto 16);
-                        F5 <= ahbsi.hwdata(15 downto 0);
-                    elsif addr_wr(4 downto 2) = "011" then
-                        F6 <= ahbsi.hwdata(31 downto 16);
-                        F7 <= ahbsi.hwdata(15 downto 0);
-                    end if;
-                else -- write control register
-                    action <= ahbsi.hwdata(0);
-                end if;
-            end if;
-        end if;
-    end process;
-
-    -- for a read operation, we must start driving the data bus
-    -- as soon as the device is selected; this way, the data will
-    -- be ready for fetch during next clock cycle
-    --
-    read_reg_process : process (clk, rst)
-    begin
-        if (rst = '0') then
-            ahbso.hrdata <= (others => '0');
-        elsif rising_edge(clk) then
-            if ((ahbsi.hsel(ahbndx) and ahbsi.htrans(1) and
-                ahbsi.hready and (not ahbsi.hwrite)) = '1') then
-                if ahbsi.haddr(5) = '0' then
-                    -- read input coefficient registers
-                    if    ahbsi.haddr(4 downto 2) = "000" then
-                        ahbso.hrdata(31 downto 16) <= F0;
-                        ahbso.hrdata(15 downto 0)  <= F1;
-                    elsif ahbsi.haddr(4 downto 2) = "001" then
-                        ahbso.hrdata(31 downto 16) <= F2;
-                        ahbso.hrdata(15 downto 0)  <= F3;
-                    elsif ahbsi.haddr(4 downto 2) = "010" then
-                        ahbso.hrdata(31 downto 16) <= F4;
-                        ahbso.hrdata(15 downto 0)  <= F5;
-                    elsif ahbsi.haddr(4 downto 2) = "011" then
-                        ahbso.hrdata(31 downto 16) <= F6;
-                        ahbso.hrdata(15 downto 0)  <= F7;
-                    end if;
-
-                    -- read output pixel value registers
-                    if    ahbsi.haddr(4 downto 2) = "100" then
-                        ahbso.hrdata(31 downto 16) <= p0;
-                        ahbso.hrdata(15 downto 0)  <= p1;
-                    elsif ahbsi.haddr(4 downto 2) = "101" then
-                        ahbso.hrdata(31 downto 16) <= p2;
-                        ahbso.hrdata(15 downto 0)  <= p3;
-                    elsif ahbsi.haddr(4 downto 2) = "110" then
-                        ahbso.hrdata(31 downto 16) <= p4;
-                        ahbso.hrdata(15 downto 0)  <= p5;
-                    elsif ahbsi.haddr(4 downto 2) = "111" then
-                        ahbso.hrdata(31 downto 16) <= p6;
-                        ahbso.hrdata(15 downto 0)  <= p7;
-                    end if;
-                else -- read control register
-                    ahbso.hrdata(31 downto 1) <= (others => '0');
-                    ahbso.hrdata(0) <= action;
-                end if;
+				if control = '0' then	-- read
+					action <= '0';
+				else
+					action <= 'Z';
+				end if;
             end if;
         end if;
     end process;
@@ -512,9 +368,4 @@ begin
             end if;
         end if;
     end process;
-
--- pragma translate_off
-    bootmsg : report_version
-    generic map ("Lab4 " & tost(ahbndx) & ": IDCT Module rev 1");
--- pragma translate_on
 end;
