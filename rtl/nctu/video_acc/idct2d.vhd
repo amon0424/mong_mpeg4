@@ -77,8 +77,23 @@ architecture rtl of idct2d is
 	signal iram_do1 : std_logic_vector(15 downto 0);
 	signal iram_do2 : std_logic_vector(15 downto 0);
 	
+	signal tram_addr1: std_logic_vector(5 downto 0);
+	signal tram_addr2: std_logic_vector(5 downto 0);
+	signal tram_we1	: std_logic;
+	signal tram_we2	: std_logic;
+	signal tram_di1 : std_logic_vector(15 downto 0);
+	signal tram_di2 : std_logic_vector(15 downto 0);
+	signal tram_do1 : std_logic_vector(15 downto 0);
+	signal tram_do2 : std_logic_vector(15 downto 0);
+	
 	signal writing_block : std_logic;
 	signal reading_block : std_logic; -- "11" for done, "10" for reading, "00" for idle
+	
+	signal row_index : std_logic_vector(6 downto 0);
+	signal col_index : std_logic_vector(6 downto 0);
+	signal F0, F1, F2, F3, F4, F5, F6, F7: std_logic_vector(15 downto 0);
+	signal p0, p1, p2, p3, p4, p5, p6, p7: std_logic_vector(15 downto 0);
+	signal p : std_logic_vector(31 downto 0);
 begin
 
 	ahbso.hresp   <= "00";
@@ -100,6 +115,20 @@ begin
 		Data_In2	=> iram_di2,
 		Data_Out1	=> iram_do1,
 		Data_Out2	=> iram_do2
+	);
+	
+	tram : BRAM
+	port map (
+		CLK1		=> clk,
+		CLK2		=> clk,
+		Addr1	=> tram_addr1,
+		Addr2	=> tram_addr2,
+		WE1		=> tram_we1,
+		WE2		=> tram_we2,
+		Data_In1	=> tram_di1,
+		Data_In2	=> tram_di2,
+		Data_Out1	=> tram_do1,
+		Data_Out2	=> tram_do2
 	);
 	
 	---------------------------------------------------------------------
@@ -159,7 +188,7 @@ begin
 		if (rst = '0') then
 			action <= '0';
 		elsif rising_edge(clk) then
-			if (stage = "11") then
+			if (prev_state = stage0 and next_state = ready) then
 				action <= '0';
 			end if;
 			if (wr_valid = '1') then
@@ -209,18 +238,28 @@ begin
 	begin
 		if (rst='0') then
 			prev_state <= ready;
-			prev_substate <= read_f;
+			prev_substate <= ready;
+			stage <= "11";
 		elsif (rising_edge(clk)) then
 			prev_state <= next_state;
 			prev_substate <= next_substate;
+			case next_state is
+			when ready =>
+				stage <= "11";
+			when stage0 =>
+				stage <= "00";
+			when stage1 =>
+				stage <= "10";
+			when others => null;
+			end case;
 		end if;
 	end process FSM1;
 	
-	process(prev_state, prev_substate, action, rst)
+	process(prev_state, prev_substate, row_index, col_index, action, rst)
 	begin
 		if (rst='0') then
 			next_state <= ready;
-			stage <= "11";
+			next_substate <= ready;
 			stage_counter <= "00000";
 		else
 			case prev_state is
@@ -228,7 +267,6 @@ begin
 				if (action='1') then
 					next_state <= stage0;
 					next_substate <= read_f;
-					stage <= "00"; 
 					stage_counter <= "00000";
 				else
 					next_state <= ready;
@@ -237,7 +275,6 @@ begin
 				if (stage_counter > 7) then
 					next_state <= stage1;
 					next_substate <= read_f;
-					stage <= "01";
 					stage_counter <= "00000";
 				else
 					next_state <= stage0;
@@ -245,7 +282,6 @@ begin
 			when stage1 =>
 				if (stage_counter > 7) then
 					next_state <= ready;
-					stage <= "11";
 				else
 					next_state <= stage1;
 				end if;
@@ -256,12 +292,30 @@ begin
 			if (stage(1) = '0' and stage_counter < 8) then
 				case prev_substate is
 				when read_f =>
-					next_substate <= idct_1d;
+					if(row_index(2 downto 0) = "110")then
+						next_substate <= idct_1d;
+					else
+						next_substate <= read_f;
+					end if;
 				when idct_1d =>
 					next_substate <= write_p;
 				when write_p =>
-					next_substate <= read_f;
-					stage_counter <= stage_counter + 1;
+					if(stage_counter < 8) then
+						if(col_index(5 downto 3) = "110")then
+							if( stage_counter = 7) then
+								next_substate <= ready;
+							else
+								next_substate <= read_f;
+							end if;
+							stage_counter <= stage_counter + 1;
+						else
+							next_substate <= write_p;
+						end if;
+					else
+						stage_counter <= stage_counter + 1;
+						next_substate <= ready;
+					end if;
+					
 				when others => null;
 				end case;
 			end if;
@@ -272,15 +326,117 @@ begin
     --  Data Path Begins Here
     ---------------------------------------------------------------------
 	
-	iram_addr1 <= ahbsi.haddr(6 downto 1) 	when stage = "11" else "000000";
-	iram_addr2 <= ahbsi.haddr(6 downto 1)+1 when stage = "11" else "000000";
+	-- for interface block ram
+	iram_addr1 <= 	ahbsi.haddr(6 downto 1) when stage = "11" else 
+					row_index(5 downto 0) when stage = "00" else
+					"000000";
+	iram_addr2 <= 	iram_addr1 + 1;
+	
 	iram_di1 <=  ahbsi.hwdata(31 downto 16) when stage = "11" else ( others => '0' );
 	iram_di2 <=  ahbsi.hwdata(15 downto 0) 	when stage = "11" else ( others => '0' );
 	iram_we1 <= '1' when ((ahbsi.hsel(ahbndx) and ahbsi.htrans(1) and ahbsi.hready and ahbsi.hwrite) = '1' 
 				and stage = "11" and ahbsi.haddr(7 downto 2) >= "000000" and ahbsi.haddr(7 downto 2) < "100000") else '0';
 	iram_we2 <= iram_we1;
 
+	-- for transpose block ram
+	tram_addr1 <= 	col_index(5 downto 0) when stage = "00" else	--write
+					row_index(5 downto 0) when stage = "00" else	--read
+					"000000";
+	tram_addr2 <= 	tram_addr1 + 8;
 	
+	tram_di1 <=	p0 when stage = "00" and col_index(5 downto 3)="000" else
+				p2 when stage = "00" and col_index(5 downto 3)="010" else
+				p4 when stage = "00" and col_index(5 downto 3)="100" else
+				p6 when stage = "00" and col_index(5 downto 3)="110" else
+				( others => '0' );
+	tram_di2 <= p1 when stage = "00" and col_index(5 downto 3)="000" else
+				p3 when stage = "00" and col_index(5 downto 3)="010" else
+				p5 when stage = "00" and col_index(5 downto 3)="100" else
+				p7 when stage = "00" and col_index(5 downto 3)="110" else
+				( others => '0' );
+	tram_we1 <= '1' when stage = "00" and prev_substate=write_p else '0';
+	tram_we2 <= tram_we1;
+	
+	row_agu: process(rst, clk)
+	begin
+		if (rst='0') then
+			row_index <= (others => '0');
+			-- f_index <= 0;
+		elsif (rising_edge(clk)) then
+			if ( next_state = stage0 ) then
+				if(stage_counter < 8)then
+					if(next_substate = read_F) then
+						row_index <= row_index + 2;
+					end if;
+				else
+					row_index <= (others => '0');
+				end if;
+			end if;
+		end if;
+	end process row_agu;
+	
+	col_agu: process(rst, clk)
+	begin
+		if (rst='0') then
+			col_index <= (others => '0');
+			-- f_index <= 0;
+		elsif (rising_edge(clk)) then
+			if ( next_state = stage0 ) then
+				if(stage_counter < 8)then
+					if(prev_substate = write_p) then
+						if( next_substate = write_p) then
+							if(col_index < "1000000" )then
+								col_index <= col_index + 16;
+							end if;
+						elsif( next_substate = read_f) then
+							col_index <= (6 downto 3 => '0') & (col_index(2 downto 0)+1);
+						end if;
+					end if;
+				else
+					col_index <= (others => '0');
+				end if;
+			end if;
+		end if;
+	end process col_agu;
+	
+	read_f_process: process(rst, clk)
+	begin
+		if (rst='0') then
+			F0 <= (others => '0'); F1 <= (others => '0');
+            F2 <= (others => '0'); F3 <= (others => '0');
+            F4 <= (others => '0'); F5 <= (others => '0');
+            F6 <= (others => '0'); F7 <= (others => '0');
+		elsif (rising_edge(clk)) then
+			case row_index(2 downto 1) is
+			when "01" =>
+				F0 <= iram_do1;
+				F1 <= iram_do2;
+			when "10" =>
+				F2 <= iram_do1;
+				F3 <= iram_do2;
+			when "11" =>
+				F4 <= iram_do1;
+				F5 <= iram_do2;
+			when "00" =>
+				F6 <= iram_do1;
+				F7 <= iram_do2;
+			when others => null;
+			end case;
+		end if;
+	end process read_f_process;
+	
+	write_p_process: process(rst, clk)
+	begin
+		if (rst='0') then
+			p0 <= (others => '1'); p1 <= (others => '0');
+            p2 <= (others => '1'); p3 <= (others => '0');
+            p4 <= (others => '1'); p5 <= (others => '0');
+            p6 <= (others => '1'); p7 <= (others => '0');
+		end if;
+	end process write_p_process;
+	
+--	ahbso.hrdata <= (iram_do1 & iram_do2) 	when stage = "11" else ( others => '0' );
+
 -- pragma translate_off
 	bootmsg : report_version
 	generic map ("Lab4 " & tost(ahbndx) & ": IDCT 2D Module rev 1");
