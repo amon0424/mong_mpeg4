@@ -129,6 +129,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\idct_tb_2d.c"
+				>
+			</File>
+			<File
 				RelativePath="..\idct_tb_small.c"
 				>
 			</File>
