@@ -58,12 +58,12 @@ architecture rtl of idct2d is
 			rst, clk: in std_logic;
 			F0, F1, F2, F3, F4, F5, F6, F7: in std_logic_vector(15 downto 0);
 			p0, p1, p2, p3, p4, p5, p6, p7: out std_logic_vector(15 downto 0);
-			action: inout std_logic;
-			control: in std_logic 	
+			action_in: in std_logic;
+			done: out std_logic 	
 		);
 	end component idct;
 	
-	signal action_idct, control_idct : std_logic;
+	signal action_idct, idct_done : std_logic;
 	signal F0, F1, F2, F3, F4, F5, F6, F7: std_logic_vector(15 downto 0);
 	signal p0, p1, p2, p3, p4, p5, p6, p7: std_logic_vector(15 downto 0);
 	
@@ -152,7 +152,7 @@ begin
 		F0, F1, F2, F3, F4, F5, F6, F7,
 		p0, p1, p2, p3, p4, p5, p6, p7,
 		action_idct,
-		control_idct
+		idct_done
 	);
 	
 	---------------------------------------------------------------------
@@ -278,33 +278,31 @@ begin
 		end if;
 	end process FSM1;
 	
-	idct_control_procss : process(rst, clk)
-	begin
-		if (rst='0') then
-			action_idct <= '0';
-		elsif (rising_edge(clk)) then
-			if( prev_substate = read_f and next_substate = idct_1d ) then
-				control_idct <= '1';
-				action_idct <= '1';
-			else
-				control_idct <= '0';
-				action_idct <= 'Z';
-			end if;
-		end if;
-	end process;
+	-- idct_control_procss : process(rst, clk)
+	-- begin
+		-- if (rst='0') then
+			-- action_idct <= '0';
+		-- elsif (rising_edge(clk)) then
+			-- if( prev_substate = read_f and next_substate = idct_1d ) then
+				-- action_idct <= '1';
+			-- else
+				-- action_idct <= '0';
+			-- end if;
+		-- end if;
+	-- end process;
 	
-	process(prev_state, prev_substate, row_index, col_index, action, action_idct, rst)
+	process(prev_state, prev_substate, row_index, col_index, action, idct_done, rst)
 	begin
 		if (rst='0') then
 			next_state <= ready;
 			next_substate <= ready;
 			stage_counter <= "00000";
+			action_idct <= '0';
 		else
 			case prev_state is
 			when ready =>
 				if (action='1') then
 					next_state <= stage0;
-					next_substate <= read_f;
 					stage_counter <= "00000";
 				else
 					next_state <= ready;
@@ -329,14 +327,20 @@ begin
 			-- sub state
 			if (stage(1) = '0' and stage_counter < 8) then
 				case prev_substate is
+				when ready =>
+					if(prev_substate = stage1 or action='1')then
+						next_substate <= read_f;
+					end if;
 				when read_f =>
 					if(read_count = "011")then
 						next_substate <= idct_1d;
+						action_idct <= '1';
 					else
 						next_substate <= read_f;
 					end if;
 				when idct_1d =>
-					if(action_idct = '1')then
+					action_idct <= '0';
+					if(idct_done = '0')then
 						next_substate <= idct_1d;
 					else
 						next_substate <= write_p;
@@ -347,7 +351,8 @@ begin
 							if( stage_counter < 7) then					-- if we not reach the last column
 								stage_counter <= stage_counter + 1;
 							end if;
-							if(prev_state = stage1 and col_index(5 downto 3) = "110" and stage_counter = 7) then
+							--if(prev_state = stage1 and col_index(5 downto 3) = "110" and stage_counter = 7) then
+							if(col_index(5 downto 3) = "110" and stage_counter = 7) then
 								next_substate <= ready;
 							else
 								next_substate <= read_f;					-- go to read next row
@@ -428,20 +433,23 @@ begin
 		elsif (rising_edge(clk)) then
 			if ( next_state = stage0 or next_state = stage1) then	-- if we will change to stage0/1 or in the same stage
 				--if(stage_counter < 8)then
-					if(next_state = prev_state and next_substate = read_F) then	-- if we are in the same stage
+					if(row_index = "1000000")then			-- if row_index = 64, next will be 0
+						row_index <= (others => '0');
+						read_count <= "000";
+					elsif(next_substate = read_F) then
 						if( prev_substate = read_F )then
 							read_count <= read_count + 1;
 						else
 							read_count <= "000";
 						end if;
 						row_index <= row_index + 2;
-					elsif(next_state /= prev_state)then				-- if we will change to stage0/1
-						row_index <= (others => '0');				-- re-count the row_index, read_count
-						read_count <= "000";
 					end if;
 				--else
 				--	row_index <= (others => '0');
-				--end if;	
+				--end if;
+			else
+				row_index <= (others => '0');	-- re-count the row_index, read_count
+				read_count <= "000";
 			end if;
 		end if;
 	end process row_agu;
@@ -508,17 +516,6 @@ begin
 			end if;
 		end if;
 	end process read_f_process;
-	
-	
-	write_p_process: process(rst, clk)
-	begin
-		if (rst='0') then
-			p0 <= (others => '1'); p1 <= (others => '0');
-            p2 <= (others => '1'); p3 <= (others => '0');
-            p4 <= (others => '1'); p5 <= (others => '0');
-            p6 <= (others => '1'); p7 <= (others => '0');
-		end if;
-	end process write_p_process;
 
 -- pragma translate_off
 	bootmsg : report_version

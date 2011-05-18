@@ -49,8 +49,8 @@ entity idct is
 		rst, clk: in std_logic;
 		F0, F1, F2, F3, F4, F5, F6, F7: in std_logic_vector(15 downto 0);
 		p0, p1, p2, p3, p4, p5, p6, p7: out std_logic_vector(15 downto 0);
-		action: inout std_logic;
-		control:	in std_logic 	-- 0 for write action, 1 for read action
+		action_in: in std_logic;
+		done:	out std_logic 	-- 0 for write action, 1 for read action
     );
 end entity idct;
 
@@ -73,6 +73,7 @@ architecture rtl of idct is
     signal v0, v1, v2, v3: std_logic_vector(15 downto 0);
     signal m1, m2, m3, m4: signed(31 downto 0);
     
+	signal action: std_logic;
     signal action_two: std_logic;
     signal main_cntr: unsigned(4 downto 0);
     signal aux_cntr: unsigned(3 downto 0);
@@ -110,19 +111,18 @@ begin
     action_control_process : process (clk, rst)
     begin
         if (rst = '0') then
-            if control = '0' then	-- read
-				action <= '0';
-			else					-- write
-				action <= 'Z';
-			end if;
+			action <= '0';
+			done <= '1';
         elsif rising_edge(clk) then
-            if (main_cntr > "00111") then
-				if control = '0' then	-- read
+			if(action_in = '1' and action = '0')then
+				action <= '1';
+				done <= '0';
+			else
+				if (main_cntr > "00111") then
 					action <= '0';
-				else
-					action <= 'Z';
+					done <= '1';
 				end if;
-            end if;
+			end if;
         end if;
     end process;
 
