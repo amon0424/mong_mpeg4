@@ -94,6 +94,7 @@ architecture rtl of idct2d is
 	signal F0, F1, F2, F3, F4, F5, F6, F7: std_logic_vector(15 downto 0);
 	signal p0, p1, p2, p3, p4, p5, p6, p7: std_logic_vector(15 downto 0);
 	signal p : std_logic_vector(31 downto 0);
+	signal read_count : std_logic_vector(2 downto 0);
 begin
 
 	ahbso.hresp   <= "00";
@@ -272,15 +273,15 @@ begin
 					next_state <= ready;
 				end if;
 			when stage0 =>
-				if (stage_counter > 7) then
+				if(col_index(5 downto 3) = "110" and stage_counter = 7) then	-- if we reach the last row and column
+					stage_counter <= "00000";	-- change to next stage
 					next_state <= stage1;
-					next_substate <= read_f;
-					stage_counter <= "00000";
 				else
 					next_state <= stage0;
 				end if;
 			when stage1 =>
-				if (stage_counter > 7) then
+				if(col_index(5 downto 3) = "110" and stage_counter = 7) then	-- if we reach the last row and column
+					stage_counter <= "00000";	-- change to next stage
 					next_state <= ready;
 				else
 					next_state <= stage1;
@@ -292,7 +293,7 @@ begin
 			if (stage(1) = '0' and stage_counter < 8) then
 				case prev_substate is
 				when read_f =>
-					if(row_index(2 downto 0) = "110")then
+					if(read_count = "011")then
 						next_substate <= idct_1d;
 					else
 						next_substate <= read_f;
@@ -300,21 +301,19 @@ begin
 				when idct_1d =>
 					next_substate <= write_p;
 				when write_p =>
-					if(stage_counter < 8) then
-						if(col_index(5 downto 3) = "110")then
-							if( stage_counter = 7) then
-								next_substate <= ready;
-							else
-								next_substate <= read_f;
+					--if(stage_counter < 8) then
+						if(col_index(5 downto 3) = "110")then		-- if col_index reach last row
+							if( stage_counter < 7) then					-- if we not reach the last column
+								stage_counter <= stage_counter + 1;
 							end if;
-							stage_counter <= stage_counter + 1;
+							next_substate <= read_f;					-- go to read next row
 						else
-							next_substate <= write_p;
+							next_substate <= write_p;				-- else continue write 
 						end if;
-					else
-						stage_counter <= stage_counter + 1;
-						next_substate <= ready;
-					end if;
+					--else
+					--	stage_counter <= stage_counter + 1;
+					--	next_substate <= ready;
+					--end if;
 					
 				when others => null;
 				end case;
@@ -327,10 +326,13 @@ begin
     ---------------------------------------------------------------------
 	
 	-- for interface block ram
-	iram_addr1 <= 	ahbsi.haddr(6 downto 1) when stage = "11" else 
-					row_index(5 downto 0) when stage = "00" else
+	iram_addr1 <= 	ahbsi.haddr(6 downto 1) when stage = "11" else 	--write
+					row_index(5 downto 0) when stage = "00" else	--read, first write
+					col_index(5 downto 0) when stage = "00" else	--write
 					"000000";
-	iram_addr2 <= 	iram_addr1 + 1;
+	iram_addr2 <= 	iram_addr1 + 1 when stage="11" or stage="00" else	--read, first write
+					iram_addr1 + 8 when stage="01" else					--write
+					"000000";
 	
 	iram_di1 <=  ahbsi.hwdata(31 downto 16) when stage = "11" else ( others => '0' );
 	iram_di2 <=  ahbsi.hwdata(15 downto 0) 	when stage = "11" else ( others => '0' );
@@ -340,9 +342,11 @@ begin
 
 	-- for transpose block ram
 	tram_addr1 <= 	col_index(5 downto 0) when stage = "00" else	--write
-					row_index(5 downto 0) when stage = "00" else	--read
+					row_index(5 downto 0) when stage = "01" else	--read
 					"000000";
-	tram_addr2 <= 	tram_addr1 + 8;
+	tram_addr2 <= 	tram_addr1 + 8 when stage = "00" else
+					tram_addr1 + 1 when stage = "01" else
+					"000000";
 	
 	tram_di1 <=	p0 when stage = "00" and col_index(5 downto 3)="000" else
 				p2 when stage = "00" and col_index(5 downto 3)="010" else
@@ -361,16 +365,24 @@ begin
 	begin
 		if (rst='0') then
 			row_index <= (others => '0');
+			read_count <= "000";
 			-- f_index <= 0;
 		elsif (rising_edge(clk)) then
-			if ( next_state = stage0 ) then
-				if(stage_counter < 8)then
-					if(next_substate = read_F) then
+			if ( next_state = stage0 or next_state = stage1) then	-- if we will change to stage0/1 or in the same stage
+				--if(stage_counter < 8)then
+					if(next_state = prev_state and next_substate = read_F) then	-- if we are in the same stage
+						if( prev_substate = read_F )then
+							read_count <= read_count + 1;
+						else
+							read_count <= "000";
+						end if;
 						row_index <= row_index + 2;
+					elsif(next_state /= prev_state)then				-- if we just change from another state
+						row_index <= (others => '0');				-- re-count the row_index
 					end if;
-				else
-					row_index <= (others => '0');
-				end if;
+				--else
+				--	row_index <= (others => '0');
+				--end if;
 			end if;
 		end if;
 	end process row_agu;
@@ -381,23 +393,25 @@ begin
 			col_index <= (others => '0');
 			-- f_index <= 0;
 		elsif (rising_edge(clk)) then
-			if ( next_state = stage0 ) then
-				if(stage_counter < 8)then
-					if(prev_substate = write_p) then
-						if( next_substate = write_p) then
-							if(col_index < "1000000" )then
-								col_index <= col_index + 16;
-							end if;
-						elsif( next_substate = read_f) then
-							col_index <= (6 downto 3 => '0') & (col_index(2 downto 0)+1);
+			if ( next_state = stage0 or next_state = stage1) then
+				--if(stage_counter < 8)then
+					if(prev_substate = write_p) then		-- if we are writing
+						if( next_substate = write_p) then	-- and if we are in the same column
+							col_index <= col_index + 16;
+						elsif(next_state = prev_state and next_substate = read_f) then		-- if next substate is read_f and next state is the same,
+																							-- col_index reach end
+							col_index <= (6 downto 3 => '0') & (col_index(2 downto 0)+1);	-- back to first row
+						else
+							col_index <= (others => '0');
 						end if;
 					end if;
-				else
-					col_index <= (others => '0');
-				end if;
+				--else
+				--	col_index <= (others => '0');
+				--end if;
 			end if;
 		end if;
 	end process col_agu;
+	
 	
 	read_f_process: process(rst, clk)
 	begin
@@ -407,23 +421,26 @@ begin
             F4 <= (others => '0'); F5 <= (others => '0');
             F6 <= (others => '0'); F7 <= (others => '0');
 		elsif (rising_edge(clk)) then
-			case row_index(2 downto 1) is
-			when "01" =>
-				F0 <= iram_do1;
-				F1 <= iram_do2;
-			when "10" =>
-				F2 <= iram_do1;
-				F3 <= iram_do2;
-			when "11" =>
-				F4 <= iram_do1;
-				F5 <= iram_do2;
-			when "00" =>
-				F6 <= iram_do1;
-				F7 <= iram_do2;
-			when others => null;
-			end case;
+			if(prev_substate = read_f) then
+				case read_count(1 downto 0) is
+				when "00" =>
+					F0 <= iram_do1;
+					F1 <= iram_do2;
+				when "01" =>
+					F2 <= iram_do1;
+					F3 <= iram_do2;
+				when "10" =>
+					F4 <= iram_do1;
+					F5 <= iram_do2;
+				when "11" =>
+					F6 <= iram_do1;
+					F7 <= iram_do2;
+				when others => null;
+				end case;
+			end if;
 		end if;
 	end process read_f_process;
+	
 	
 	write_p_process: process(rst, clk)
 	begin
