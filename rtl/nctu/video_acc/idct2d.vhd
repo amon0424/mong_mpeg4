@@ -257,7 +257,7 @@ begin
 	---------------------------------------------------------------------
 	--  Controller (Finite State Machines) Begins Here
 	---------------------------------------------------------------------
-	FSM1: process(rst, clk)
+	FSM: process(rst, clk)
 	begin
 		if (rst='0') then
 			prev_state <= ready;
@@ -276,7 +276,7 @@ begin
 			when others => null;
 			end case;
 		end if;
-	end process FSM1;
+	end process FSM;
 	
 	-- idct_control_procss : process(rst, clk)
 	-- begin
@@ -291,86 +291,117 @@ begin
 		-- end if;
 	-- end process;
 	
-	process(prev_state, prev_substate, row_index, col_index, action, idct_done, rst)
+	state_control: process(prev_state, col_index, action, rst)
+	--state_control: process(clk)
 	begin
-		if (rst='0') then
-			next_state <= ready;
-			next_substate <= ready;
-			stage_counter <= "00000";
-			action_idct <= '0';
-		else
+		-- if (rst='0') then
+			-- next_state <= ready;
+		-- else
+		--if (rising_edge(clk)) then
 			case prev_state is
 			when ready =>
 				if (action='1') then
 					next_state <= stage0;
-					stage_counter <= "00000";
 				else
 					next_state <= ready;
 				end if;
 			when stage0 =>
 				if(col_index(5 downto 3) = "110" and stage_counter = 7) then	-- if we reach the last row and column
-					stage_counter <= "00000";	-- change to next stage
 					next_state <= stage1;
 				else
 					next_state <= stage0;
 				end if;
 			when stage1 =>
 				if(col_index(5 downto 3) = "110" and stage_counter = 7) then	-- if we reach the last row and column
-					stage_counter <= "00000";	-- change to next stage
 					next_state <= ready;
 				else
 					next_state <= stage1;
 				end if;
 			when others => null;
 			end case;
-			
-			-- sub state
-			if (stage(1) = '0' and stage_counter < 8) then
-				case prev_substate is
-				when ready =>
-					if(prev_substate = stage1 or action='1')then
-						next_substate <= read_f;
-					end if;
-				when read_f =>
-					if(read_count = "011")then
-						next_substate <= idct_1d;
-						action_idct <= '1';
-					else
-						next_substate <= read_f;
-					end if;
-				when idct_1d =>
-					action_idct <= '0';
-					if(idct_done = '0')then
-						next_substate <= idct_1d;
-					else
-						next_substate <= write_p;
-					end if;
-				when write_p =>
-					--if(stage_counter < 8) then
-						if(col_index(5 downto 3) = "110")then		-- if col_index reach last row
-							if( stage_counter < 7) then					-- if we not reach the last column
-								stage_counter <= stage_counter + 1;
-							end if;
-							--if(prev_state = stage1 and col_index(5 downto 3) = "110" and stage_counter = 7) then
-							if(col_index(5 downto 3) = "110" and stage_counter = 7) then
-								next_substate <= ready;
-							else
-								next_substate <= read_f;					-- go to read next row
-							end if;
-						else
-							next_substate <= write_p;				-- else continue write 
-						end if;
-					--else
-					--	stage_counter <= stage_counter + 1;
-					--	next_substate <= ready;
-					--end if;
-					
-				when others => null;
-				end case;
+		--end if;
+		--end if;
+	end process state_control;
+	
+	stage_counter_control: process(rst, clk)
+	begin
+		if (rst='0') then
+			stage_counter <= "00000";
+		elsif (rising_edge(clk)) then
+			if( prev_substate = write_p and col_index(5 downto 3) = "110" )then		-- if col_index reach last row
+				if( stage_counter < 7) then					-- if we not reach the last column
+					stage_counter <= stage_counter + 1;
+				elsif(prev_state = stage1) then
+					stage_counter <= "00000";
+				end if;
 			end if;
 		end if;
-	end process;
+	end process stage_counter_control;
+
+	action_idct_control: process(clk, rst)
+	begin
+		if (rst='0') then
+			action_idct <= '0';
+		elsif (rising_edge(clk)) then
+			if prev_substate = read_f and read_count = "011" then
+				action_idct <= '1';
+			else
+				action_idct <= '0';
+			end if;
+		end if;
+	end process action_idct_control;
 	
+	sub_state_control: process(prev_substate, col_index, action, idct_done, read_count)
+	--sub_state_control: process(clk)
+	begin
+	-- sub state
+	--if (stage(1) = '0' and stage_counter < 8) then
+		--if (rising_edge(clk)) then
+			case prev_substate is
+			when ready =>
+				if(prev_substate = stage1 or action='1')then
+					next_substate <= read_f;
+				else
+					next_substate <= ready;
+				end if;
+			when read_f =>
+				if(read_count = "011")then
+					next_substate <= idct_1d;
+				else
+					next_substate <= read_f;
+				end if;
+			when idct_1d =>
+				if(idct_done = '0')then
+					next_substate <= idct_1d;
+				else
+					next_substate <= write_p;
+				end if;
+			when write_p =>
+				--if(stage_counter < 8) then
+					if(col_index(5 downto 3) = "110")then		-- if col_index reach last row
+						--if( stage_counter < 7) then					-- if we not reach the last column
+						--	stage_counter <= stage_counter + 1;
+						--end if;
+						--if(prev_state = stage1 and col_index(5 downto 3) = "110" and stage_counter = 7) then
+						--elsif(prev_state = stage1) then
+						if(stage_counter = 7 and prev_state = stage1) then
+							next_substate <= ready;
+						else
+							next_substate <= read_f;					-- go to read next row
+						end if;
+					else
+						next_substate <= write_p;				-- else continue write 
+					end if;
+				--else
+				--	stage_counter <= stage_counter + 1;
+				--	next_substate <= ready;
+				--end if;
+				
+			when others => null;
+			end case;
+		--end if;
+	--end if;
+	end process sub_state_control;
 	---------------------------------------------------------------------
     --  Data Path Begins Here
     ---------------------------------------------------------------------
@@ -433,16 +464,17 @@ begin
 		elsif (rising_edge(clk)) then
 			if ( next_state = stage0 or next_state = stage1) then	-- if we will change to stage0/1 or in the same stage
 				--if(stage_counter < 8)then
-					if(row_index = "1000000")then			-- if row_index = 64, next will be 0
+					if(row_index = "1000000")then		-- if row_index = 64, next will be 0
 						row_index <= (others => '0');
 						read_count <= "000";
-					elsif(next_substate = read_F) then
-						if( prev_substate = read_F )then
+					elsif(next_substate = read_F) then	-- else if we will read f
+						row_index <= row_index + 2;			-- acc the row_index ( we need to assign address first, because
+															-- the bram reading need one more cycle to get result )
+						if( prev_substate = read_F )then		
 							read_count <= read_count + 1;
 						else
 							read_count <= "000";
 						end if;
-						row_index <= row_index + 2;
 					end if;
 				--else
 				--	row_index <= (others => '0');
@@ -462,18 +494,18 @@ begin
 		elsif (rising_edge(clk)) then
 			if ( next_state = stage0 or next_state = stage1) then		-- if we will change to stage0/1 or in the same stage
 				--if(stage_counter < 8)then
-					if(prev_substate = write_p) then		-- if we are writing
-						if( next_substate = write_p) then	-- and if we are in the same column
-							col_index <= col_index + 16;
-						elsif(next_state = prev_state and next_substate = read_f) then		-- if next substate is read_f and next state is the same,
-																							-- col_index reach end
-							col_index <= (6 downto 3 => '0') & (col_index(2 downto 0)+1);	-- back to first row
-						else
+					if(prev_substate = write_p) then						-- if we are writing
+						if( next_substate = write_p) then									-- if we will write to the same column
+							col_index <= col_index + 16;										-- set the next col_index
+						elsif(next_substate = read_f and next_state = prev_state ) then		-- else if next substate is read_f and next state is the same,
+																							-- so we reach the last row
+							col_index <= (6 downto 3 => '0') & (col_index(2 downto 0)+1);		-- go back to first row
+						else															
 							col_index <= (others => '0');
 						end if;
 					end if;
-				--else
-				--	col_index <= (others => '0');
+			else
+				col_index <= (others => '0');
 				--end if;
 			end if;
 		end if;

@@ -39,22 +39,22 @@ package video_acc is
         );
     end component;
 
-    component idct
-        generic (
-            ahbndx  : integer := 0;
-            ahbaddr : integer := 0;
-            addrmsk : integer := 16#fff#;
-            verid   : integer := 0;
-            irq_no  : integer := 0
-        );
+    -- component idct
+        -- generic (
+            -- ahbndx  : integer := 0;
+            -- ahbaddr : integer := 0;
+            -- addrmsk : integer := 16#fff#;
+            -- verid   : integer := 0;
+            -- irq_no  : integer := 0
+        -- );
 
-        port(
-            rst     : in  std_ulogic;
-            clk     : in  std_ulogic;
-            ahbsi   : in  ahb_slv_in_type;
-            ahbso   : out ahb_slv_out_type
-        );
-    end component;
+        -- port(
+            -- rst     : in  std_ulogic;
+            -- clk     : in  std_ulogic;
+            -- ahbsi   : in  ahb_slv_in_type;
+            -- ahbso   : out ahb_slv_out_type
+        -- );
+    -- end component;
 
 	component idct2d
         generic (
