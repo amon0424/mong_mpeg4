@@ -46,7 +46,7 @@ architecture rtl of idct2d is
 	signal prev_substate, next_substate: state;
 	signal prev_state, next_state: state;
 	
-	signal stage : std_logic_vector(1 downto 0);
+	--signal stage : std_logic_vector(1 downto 0);
 	signal stage_counter: unsigned(4 downto 0);
 	signal action : std_logic;
 	
@@ -94,6 +94,16 @@ architecture rtl of idct2d is
 	signal F0, F1, F2, F3, F4, F5, F6, F7: std_logic_vector(15 downto 0);
 	signal p0, p1, p2, p3, p4, p5, p6, p7: std_logic_vector(15 downto 0);
 	signal p : std_logic_vector(31 downto 0);
+	
+	--------------------ken-----------------------------------------
+	type state1 is (RDY, STAGE0, STAGE1);
+	type state2 is (READ_F, IDCT_1D, WRITE_p);
+	signal cr_state, nx_state: state1;
+	signal sub_cr_state, sub_nx_state: state2;
+	signal run_sub: std_logic;
+	signal count0, count1: std_logic_vector(3 downto 0);
+	signal stage: std_logic_vector(1 downto 0);
+	----------------------ken---------------------------------------
 begin
 
 	ahbso.hresp   <= "00";
@@ -234,94 +244,171 @@ begin
 	---------------------------------------------------------------------
 	--  Controller (Finite State Machines) Begins Here
 	---------------------------------------------------------------------
-	FSM1: process(rst, clk)
+	------------------------ken------------------------------------
+	FSM_2D: process(rst, clk, count0, count1)
 	begin
-		if (rst='0') then
-			prev_state <= ready;
-			prev_substate <= ready;
-			stage <= "11";
-		elsif (rising_edge(clk)) then
-			prev_state <= next_state;
-			prev_substate <= next_substate;
-			case next_state is
-			when ready =>
-				stage <= "11";
-			when stage0 =>
-				stage <= "00";
-			when stage1 =>
-				stage <= "10";
-			when others => null;
-			end case;
+		if(rst = '0') then
+			cr_state <= RDY;
+		elsif(count0 > "0111" or count1 >"0111") then 
+			sub_cr_state <= READ_F;
+		else 
+		    cr_state <= nx_state;
+		    sub_cr_state <= sub_nx_state;
 		end if;
-	end process FSM1;
-	
-	process(prev_state, prev_substate, row_index, col_index, action, rst)
-	begin
-		if (rst='0') then
-			next_state <= ready;
-			next_substate <= ready;
-			stage_counter <= "00000";
+		
+		if count0 > "0111" or count0 ="XXXX" then 
+			count0 <= "0000";
 		else
-			case prev_state is
-			when ready =>
-				if (action='1') then
-					next_state <= stage0;
-					next_substate <= read_f;
-					stage_counter <= "00000";
-				else
-					next_state <= ready;
-				end if;
-			when stage0 =>
-				if (stage_counter > 7) then
-					next_state <= stage1;
-					next_substate <= read_f;
-					stage_counter <= "00000";
-				else
-					next_state <= stage0;
-				end if;
-			when stage1 =>
-				if (stage_counter > 7) then
-					next_state <= ready;
-				else
-					next_state <= stage1;
-				end if;
-			when others => null;
-			end case;
-			
-			-- sub state
-			if (stage(1) = '0' and stage_counter < 8) then
-				case prev_substate is
-				when read_f =>
-					if(row_index(2 downto 0) = "110")then
-						next_substate <= idct_1d;
-					else
-						next_substate <= read_f;
-					end if;
-				when idct_1d =>
-					next_substate <= write_p;
-				when write_p =>
-					if(stage_counter < 8) then
-						if(col_index(5 downto 3) = "110")then
-							if( stage_counter = 7) then
-								next_substate <= ready;
-							else
-								next_substate <= read_f;
-							end if;
-							stage_counter <= stage_counter + 1;
-						else
-							next_substate <= write_p;
-						end if;
-					else
-						stage_counter <= stage_counter + 1;
-						next_substate <= ready;
-					end if;
-					
-				when others => null;
-				end case;
+		if rising_edge(clk) then	
+			count0 <= count0 + 1;
+		end if;
+		end if;
+		
+		if count1 > "0111" or count1 ="XXXX"  then 
+			count1 <= "0000";
+		else
+		if rising_edge(clk) then
+			count1 <= count1 + 1;
+		end if;
+		end if;
+	end process FSM_2D;
+	
+	process (cr_state, action, count0, count1)
+	begin 
+		case cr_state is
+		when RDY =>
+			if (action = '1') then
+				nx_state <= STAGE0;
+				stage <= "00";
+			else
+				nx_state <= RDY;
 			end if;
+		when STAGE0 =>
+			if(count0 > "0111") then 
+				stage <= "01";
+				nx_state <= STAGE1;
+			else
+				run_sub <= '1';
+				nx_state <= STAGE0;	
+			end if;
+		when STAGE1 =>
+			if(count1 > "0111") then 
+				stage <= "11";
+				nx_state <= RDY;
+			else
+				nx_state <= STAGE1;
+			end if;
+		when others => NULL;
+		end case;
+	end process;	
+	
+	process (sub_cr_state, run_sub)
+	begin 
+		if run_sub = '1' then
+		case sub_cr_state is
+		when READ_F =>
+			sub_nx_state <= IDCT_1D;
+		when IDCT_1D =>
+			sub_nx_state <= WRITE_p;
+		when WRITE_p =>
+			sub_nx_state <= READ_F;
+		when others => null;
+		end case;
 		end if;
 	end process;
+	------------------------------ken----------------------------------
 	
+	
+	
+	
+--	FSM1: process(rst, clk)
+--	begin
+--		if (rst='0') then
+--			prev_state <= ready;
+--			prev_substate <= ready;
+--			stage <= "11";
+--		elsif (rising_edge(clk)) then
+--			prev_state <= next_state;
+--			prev_substate <= next_substate;
+--			case next_state is
+--			when ready =>
+--				stage <= "11";
+--			when stage0 =>
+--				stage <= "00";
+--			when stage1 =>
+--				stage <= "10";
+--			when others => null;
+--			end case;
+--		end if;
+--	end process FSM1;
+--	
+--	process(prev_state, prev_substate, row_index, col_index, action, rst)
+--	begin
+--		if (rst='0') then
+--			next_state <= ready;
+--			next_substate <= ready;
+--			stage_counter <= "00000";
+--		else
+--			case prev_state is
+--			when ready =>
+--				if (action='1') then
+--					next_state <= stage0;
+--					next_substate <= read_f;
+--					stage_counter <= "00000";
+--				else
+--					next_state <= ready;
+--				end if;
+--			when stage0 =>
+--				if (stage_counter > 7) then
+--					next_state <= stage1;
+--					next_substate <= read_f;
+--					stage_counter <= "00000";
+--				else
+--					next_state <= stage0;
+--				end if;
+--			when stage1 =>
+--				if (stage_counter > 7) then
+--					next_state <= ready;
+--				else
+--					next_state <= stage1;
+--				end if;
+--			when others => null;
+--			end case;
+			
+			-- sub state
+--			if (stage(1) = '0' and stage_counter < 8) then
+--				case prev_substate is
+--				when read_f =>
+--					if(row_index(2 downto 0) = "110")then
+--					next_substate <= idct_1d;
+--					else
+--						next_substate <= read_f;
+--					end if;
+--				when idct_1d =>
+--					next_substate <= write_p;
+--				when write_p =>
+--					if(stage_counter < 8) then
+--						if(col_index(5 downto 3) = "110")then
+--							if( stage_counter = 7) then
+--								next_substate <= ready;
+--							else
+--								next_substate <= read_f;
+--							end if;
+--							stage_counter <= stage_counter + 1;
+--						else
+--							next_substate <= write_p;
+--						end if;
+--					else
+--						stage_counter <= stage_counter + 1;
+--						next_substate <= ready;
+--					end if;
+--					
+--				when others => null;
+--				end case;
+--			end if;
+--		end if;
+--	end process;
+--	
 	---------------------------------------------------------------------
     --  Data Path Begins Here
     ---------------------------------------------------------------------
