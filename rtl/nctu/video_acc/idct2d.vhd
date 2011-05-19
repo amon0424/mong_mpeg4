@@ -262,65 +262,35 @@ begin
 		if (rst='0') then
 			prev_state <= ready;
 			prev_substate <= ready;
-			stage <= "11";
 		elsif (rising_edge(clk)) then
 			prev_state <= next_state;
 			prev_substate <= next_substate;
-			case next_state is
-			when ready =>
-				stage <= "11";
-			when stage0 =>
-				stage <= "00";
-			when stage1 =>
-				stage <= "01";
-			when others => null;
-			end case;
 		end if;
 	end process FSM;
 	
-	-- idct_control_procss : process(rst, clk)
-	-- begin
-		-- if (rst='0') then
-			-- action_idct <= '0';
-		-- elsif (rising_edge(clk)) then
-			-- if( prev_substate = read_f and next_substate = idct_1d ) then
-				-- action_idct <= '1';
-			-- else
-				-- action_idct <= '0';
-			-- end if;
-		-- end if;
-	-- end process;
-	
 	state_control: process(prev_state, col_index, action, rst)
-	--state_control: process(clk)
 	begin
-		-- if (rst='0') then
-			-- next_state <= ready;
-		-- else
-		--if (rising_edge(clk)) then
-			case prev_state is
-			when ready =>
-				if (action='1') then
-					next_state <= stage0;
-				else
-					next_state <= ready;
-				end if;
-			when stage0 =>
-				if(col_index(5 downto 3) = "110" and stage_counter = 7) then	-- if we reach the last row and column
-					next_state <= stage1;
-				else
-					next_state <= stage0;
-				end if;
-			when stage1 =>
-				if(col_index(5 downto 3) = "110" and stage_counter = 7) then	-- if we reach the last row and column
-					next_state <= ready;
-				else
-					next_state <= stage1;
-				end if;
-			when others => null;
-			end case;
-		--end if;
-		--end if;
+		case prev_state is
+		when ready =>
+			if (action='1') then
+				next_state <= stage0;
+			else
+				next_state <= ready;
+			end if;
+		when stage0 =>
+			if(col_index(5 downto 3) = "110" and stage_counter = 7) then	-- if we reach the last row and column
+				next_state <= stage1;
+			else
+				next_state <= stage0;
+			end if;
+		when stage1 =>
+			if(col_index(5 downto 3) = "110" and stage_counter = 7) then	-- if we reach the last row and column
+				next_state <= ready;
+			else
+				next_state <= stage1;
+			end if;
+		when others => null;
+		end case;
 	end process state_control;
 	
 	stage_counter_control: process(rst, clk)
@@ -331,7 +301,7 @@ begin
 			if( prev_substate = write_p and col_index(5 downto 3) = "110" )then		-- if col_index reach last row
 				if( stage_counter < 7) then					-- if we not reach the last column
 					stage_counter <= stage_counter + 1;
-				elsif(prev_state = stage1) then
+				elsif(prev_state = stage0 or prev_state = stage1) then
 					stage_counter <= "00000";
 				end if;
 			end if;
@@ -343,7 +313,7 @@ begin
 		if (rst='0') then
 			action_idct <= '0';
 		elsif (rising_edge(clk)) then
-			if prev_substate = read_f and read_count = "011" then
+			if prev_substate = read_f and read_count = "010" then
 				action_idct <= '1';
 			else
 				action_idct <= '0';
@@ -352,14 +322,10 @@ begin
 	end process action_idct_control;
 	
 	sub_state_control: process(prev_substate, col_index, action, idct_done, read_count)
-	--sub_state_control: process(clk)
 	begin
-	-- sub state
-	--if (stage(1) = '0' and stage_counter < 8) then
-		--if (rising_edge(clk)) then
 			case prev_substate is
 			when ready =>
-				if(prev_substate = stage1 or action='1')then
+				if(action='1')then
 					next_substate <= read_f;
 				else
 					next_substate <= ready;
@@ -377,14 +343,8 @@ begin
 					next_substate <= write_p;
 				end if;
 			when write_p =>
-				--if(stage_counter < 8) then
 					if(col_index(5 downto 3) = "110")then		-- if col_index reach last row
-						--if( stage_counter < 7) then					-- if we not reach the last column
-						--	stage_counter <= stage_counter + 1;
-						--end if;
-						--if(prev_state = stage1 and col_index(5 downto 3) = "110" and stage_counter = 7) then
-						--elsif(prev_state = stage1) then
-						if(stage_counter = 7 and prev_state = stage1) then
+						if(stage_counter = 7) then
 							next_substate <= ready;
 						else
 							next_substate <= read_f;					-- go to read next row
@@ -392,67 +352,60 @@ begin
 					else
 						next_substate <= write_p;				-- else continue write 
 					end if;
-				--else
-				--	stage_counter <= stage_counter + 1;
-				--	next_substate <= ready;
-				--end if;
-				
 			when others => null;
 			end case;
-		--end if;
-	--end if;
 	end process sub_state_control;
 	---------------------------------------------------------------------
     --  Data Path Begins Here
     ---------------------------------------------------------------------
 	
 	-- for interface block ram
-	iram_addr1 <= 	ahbsi.haddr(6 downto 1) when stage = "11" else 	--write
-					row_index(5 downto 0) when stage = "00" else	--read, first write
-					col_index(5 downto 0) when stage = "01" else	--write
+	iram_addr1 <= 	ahbsi.haddr(6 downto 1) when prev_state = ready else 	--write
+					row_index(5 downto 0) when prev_state = stage0 else	--read, first write
+					col_index(5 downto 0) when prev_state = stage1 else	--write
 					"000000";
-	iram_addr2 <= 	iram_addr1 + 1 when stage="11" or stage="00" else	--read, first write
-					iram_addr1 + 8 when stage="01" else					--write
+	iram_addr2 <= 	iram_addr1 + 1 when prev_state = ready or prev_state = stage0 else	--read, first write
+					iram_addr1 + 8 when prev_state = stage1 else					--write
 					"000000";
 	
-	iram_di1 <=	ahbsi.hwdata(31 downto 16) when stage = "11" else
-				p0 when stage = "01" and col_index(5 downto 3)="000" else
-				p2 when stage = "01" and col_index(5 downto 3)="010" else
-				p4 when stage = "01" and col_index(5 downto 3)="100" else
-				p6 when stage = "01" and col_index(5 downto 3)="110" else
+	iram_di1 <=	ahbsi.hwdata(31 downto 16) when prev_state = ready else
+				p0 when prev_state = stage1 and col_index(5 downto 3)="000" else
+				p2 when prev_state = stage1 and col_index(5 downto 3)="010" else
+				p4 when prev_state = stage1 and col_index(5 downto 3)="100" else
+				p6 when prev_state = stage1 and col_index(5 downto 3)="110" else
 				( others => '0' );
-	iram_di2 <=  ahbsi.hwdata(15 downto 0) 	when stage = "11" else
-				p1 when stage = "00" and col_index(5 downto 3)="000" else	
-				p3 when stage = "00" and col_index(5 downto 3)="010" else
-				p5 when stage = "00" and col_index(5 downto 3)="100" else
-				p7 when stage = "00" and col_index(5 downto 3)="110" else
+	iram_di2 <=  ahbsi.hwdata(15 downto 0) 	when prev_state = ready else
+				p1 when prev_state = stage1 and col_index(5 downto 3)="000" else	
+				p3 when prev_state = stage1 and col_index(5 downto 3)="010" else
+				p5 when prev_state = stage1 and col_index(5 downto 3)="100" else
+				p7 when prev_state = stage1 and col_index(5 downto 3)="110" else
 				( others => '0' );
-	iram_we1 <= '1' when (stage = "11" and(ahbsi.hsel(ahbndx) and ahbsi.htrans(1) and ahbsi.hready and ahbsi.hwrite) = '1' 
-							and stage = "11" and ahbsi.haddr(7 downto 2) >= "000000" and ahbsi.haddr(7 downto 2) < "100000") 
+	iram_we1 <= '1' when ((ahbsi.hsel(ahbndx) and ahbsi.htrans(1) and ahbsi.hready and ahbsi.hwrite) = '1' 
+							and prev_state = ready and ahbsi.haddr(7 downto 2) >= "000000" and ahbsi.haddr(7 downto 2) < "100000") 
 						or
-						(stage="01" and  prev_substate=write_p)
+						(prev_state = stage1 and  prev_substate=write_p)
 				else '0';
 	iram_we2 <= iram_we1;
 
 	-- for transpose block ram
-	tram_addr1 <= 	col_index(5 downto 0) when stage = "00" else	--write
-					row_index(5 downto 0) when stage = "01" else	--read
+	tram_addr1 <= 	col_index(5 downto 0) when prev_state = stage0 else	--write
+					row_index(5 downto 0) when prev_state = stage1 else	--read
 					"000000";
-	tram_addr2 <= 	tram_addr1 + 8 when stage = "00" else
-					tram_addr1 + 1 when stage = "01" else
+	tram_addr2 <= 	tram_addr1 + 8 when prev_state = stage0 else
+					tram_addr1 + 1 when prev_state = stage1 else
 					"000000";
 	
-	tram_di1 <=	p0 when stage = "00" and col_index(5 downto 3)="000" else
-				p2 when stage = "00" and col_index(5 downto 3)="010" else
-				p4 when stage = "00" and col_index(5 downto 3)="100" else
-				p6 when stage = "00" and col_index(5 downto 3)="110" else
+	tram_di1 <=	p0 when prev_state = stage0 and col_index(5 downto 3)="000" else
+				p2 when prev_state = stage0 and col_index(5 downto 3)="010" else
+				p4 when prev_state = stage0 and col_index(5 downto 3)="100" else
+				p6 when prev_state = stage0 and col_index(5 downto 3)="110" else
 				( others => '0' );
-	tram_di2 <= p1 when stage = "00" and col_index(5 downto 3)="000" else
-				p3 when stage = "00" and col_index(5 downto 3)="010" else
-				p5 when stage = "00" and col_index(5 downto 3)="100" else
-				p7 when stage = "00" and col_index(5 downto 3)="110" else
+	tram_di2 <= p1 when prev_state = stage0 and col_index(5 downto 3)="000" else
+				p3 when prev_state = stage0 and col_index(5 downto 3)="010" else
+				p5 when prev_state = stage0 and col_index(5 downto 3)="100" else
+				p7 when prev_state = stage0 and col_index(5 downto 3)="110" else
 				( others => '0' );
-	tram_we1 <= '1' when stage = "00" and prev_substate=write_p else '0';
+	tram_we1 <= '1' when prev_state = stage0 and prev_substate=write_p else '0';
 	tram_we2 <= tram_we1;
 	
 	row_agu: process(rst, clk)
