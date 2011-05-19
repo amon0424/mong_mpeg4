@@ -4,6 +4,6 @@
 #	idct_tb
 #	idct2d_fsm_tb
 #	idct_tb_2d
-
+#	idct2d_tb_1b
 # Modify the following line to change testbench make target
-TARGET=idct_tb_2d
+TARGET=idct2d_tb_1b
