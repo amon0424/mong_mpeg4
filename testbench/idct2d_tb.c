@@ -25,7 +25,7 @@
 /* HW accelerator interface */
 long *F_array           = (long *) 0xb0100000;
 long *p_array           = (long *) 0xb0100010;
-volatile long *action   = (long *) 0xb0100020;
+volatile long *action   = (long *) 0xb0100080;
 
 /* DCT kernel matrices */
 long dct_HU[] = {
@@ -175,63 +175,55 @@ idct_2d(short *block)
 void
 hw_idct_2d(short *block)
 {
-    int row, col, idx;
-    short tmem[64]; /* 2-D IDCT transpose memory */
+	int idx, result, row;
+	short* blockBase;
+	long* fBase;
+	memcpy((void *) F_array, (void *) block, sizeof(short)<<6);
 
-    /* row transform */
-    for (row = 0; row < 8; row++)
-    {
-#if NO_ECOS /* memcpy() has problems under eCos 1.0.8 */
-        memcpy((void *) F_array, (void *) (block+(row<<3)), sizeof(short)<<3);
-#else
-        for (col = 0; col < 8; col+=2)
-        {
-            F_array[col>>1] = *((long *) (block+(row<<3)+col));
-        }
-#endif
-        *action = 1;
-        while (*action) /* do nothing */;
-        for (idx = 0; idx < 8; idx++)
-        {
-            tmem[(idx<<3)+row] = ((short *) p_array)[idx];
-        }
-    }
+	*action=1;
+	while(*action);
 
-    /* column transform */
-    for (row = 0; row < 8; row++)
-    {
-#if NO_ECOS /* memcpy() has problems under eCos 1.0.8 */
-        memcpy((void *) F_array, (void *) (tmem+(row<<3)), sizeof(short)<<3);
-#else
-        for (col = 0; col < 8; col += 2)
-        {
-            F_array[col>>1] = *((long *) (tmem+(row<<3)+col));
-        }
-#endif
-        *action = 1;
-        while (*action) /* do nothing */;
-        for (idx = 0; idx < 8; idx++)
-        {
-            block[(idx<<3)+row] = ((short *) p_array)[idx];
-        }
-    }
+	blockBase = block;
+	fBase = F_array;
+	for(row=0;row<8;row++)
+	{
+		result = *(fBase++);
+		*(blockBase++) = (short)(result >> 16);
+		*(blockBase++) = (short)(result);
+
+		result = *(fBase++);
+		*(blockBase++) = (short)(result >> 16);
+		*(blockBase++) = (short)(result);
+
+		result = *(fBase++);
+		*(blockBase++) = (short)(result >> 16);
+		*(blockBase++) = (short)(result);
+
+		result = *(fBase++);
+		*(blockBase++) = (short)(result >> 16);
+		*(blockBase++) = (short)(result);
+	}
 }
 
 int
 main(int arc, char *arv[])
 {
-    int idx;
+    int block_no, idx;
+    int max_error, error, overall_max_error;
     short block[64];      /* buffer for IDCT test patterns */
     short block_hw[64];   /* buffer for HW IDCT inputs     */
 
+    //srand(clock());
     printf("Start testing IDCT.\n");
 
     /* generate test pattern */
+	printf("Source = [\n");
     for (idx = 0; idx < 64; idx++)
     {
-        //block[idx] = (short) ((rand() % 510) - 255);
-		block[idx] = idx * 2;
+        block[idx] = (short) ((rand() % 510) - 255);
+		 printf(((idx+1)%8)? "%5d " : "%5d\n", block[idx]);
     }
+	printf("]\n");
 
     /* compute forward dct transform on the test blocks */
     dct_2d(block);
@@ -244,7 +236,7 @@ main(int arc, char *arv[])
     }
 #endif
 
-
+#if 1
     /* display one 8x8 block of DCT test coefficients */
     printf("DCT Coefficients = [\n");
     for (idx = 0; idx < 64; idx++)
@@ -252,7 +244,7 @@ main(int arc, char *arv[])
         printf(((idx+1)%8)? "%5d " : "%5d\n", block[idx]);
     }
     printf("]\n");
-
+#endif
 
     /* compute the C-Model idct output */
     idct_2d(block);
@@ -260,19 +252,11 @@ main(int arc, char *arv[])
     /* compute idct using the hardware logic */
     hw_idct_2d(block_hw);
 
-	/* display one 8x8 block of IDCT result */
-    printf("IDCT Results = [\n");
+	/* display one 8x8 block of DCT test coefficients */
+    printf("Result = [\n");
     for (idx = 0; idx < 64; idx++)
     {
         printf(((idx+1)%8)? "%5d " : "%5d\n", block[idx]);
-    }
-    printf("]\n");
-
-	/* display one 8x8 block of IDCT result */
-    printf("HW IDCT Results = [\n");
-    for (idx = 0; idx < 64; idx++)
-    {
-        printf(((idx+1)%8)? "%5d " : "%5d\n", block_hw[idx]);
     }
     printf("]\n");
 
