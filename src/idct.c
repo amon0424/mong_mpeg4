@@ -1,8 +1,59 @@
 #include <string.h>
 
+#define USE_HW_IDCT_2D 1
 #define USE_HW_IDCT 1
 
-#if USE_HW_IDCT  /* ========== HW IDCT ============ */
+#if USE_HW_IDCT_2D
+long *F_array            = (long *) 0xb0100000;
+long *p_array            = (long *) 0xb0100000;
+volatile long *action   = (long *) 0xb0100080;
+
+void
+idct(short *block)
+{
+	int idx, result, row;
+	short* blockBase;
+	volatile long* fBase;
+
+	blockBase = block;
+	fBase = F_array;
+	for(row=0;row<8;row++)
+	{
+		*(fBase++) = *((long *)blockBase);
+		*(fBase++) = *((long *)(blockBase+2));
+		*(fBase++) = *((long *)(blockBase+4));
+		*(fBase++) = *((long *)(blockBase+6));
+		blockBase += 8;
+	}
+
+	*action=1;
+	while(*action);
+
+	blockBase = block;
+	fBase = F_array;
+	for(row=0;row<8;row++)
+	{
+		result = *(fBase++);
+		*(blockBase++) = (short)(result >> 16);
+		*(blockBase++) = (short)(result);
+
+		result = *(fBase++);
+		*(blockBase++) = (short)(result >> 16);
+		*(blockBase++) = (short)(result);
+
+		result = *(fBase++);
+		*(blockBase++) = (short)(result >> 16);
+		*(blockBase++) = (short)(result);
+
+		result = *(fBase++);
+		*(blockBase++) = (short)(result >> 16);
+		*(blockBase++) = (short)(result);
+	}
+
+}
+
+
+#elif USE_HW_IDCT  /* ========== HW IDCT ============ */
 
 /* HW accelerator interface */
 long *F_array            = (long *) 0xb0100000;

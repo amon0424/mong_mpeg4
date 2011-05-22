@@ -36,7 +36,8 @@ architecture rtl of idct2d is
 
 	-- AMBA bus control signals
 	signal wr_valid : std_logic; -- is the logic selected by a master
-	signal addr_wr : std_logic_vector(31 downto 0);
+	--signal addr_wr : std_logic_vector(31 downto 0);
+	signal addr_wr : std_logic_vector(7 downto 0);
 	
 	-----------------------------------------------------------------
 	-- 1-D IDCT signals
@@ -46,8 +47,8 @@ architecture rtl of idct2d is
 	signal prev_substate, next_substate: state;
 	signal prev_state, next_state: state;
 	
-	signal stage : std_logic_vector(1 downto 0);
-	signal stage_counter: unsigned(4 downto 0);
+	--signal stage : std_logic_vector(1 downto 0);
+	signal stage_counter: unsigned(2 downto 0);
 	signal action : std_logic;
 	
 	-----------------------------------------------------------------
@@ -55,19 +56,21 @@ architecture rtl of idct2d is
 	-----------------------------------------------------------------
 	component idct is
 		port(
-			rst, clk: in std_logic;
-			F0, F1, F2, F3, F4, F5, F6, F7: in std_logic_vector(15 downto 0);
-			p0, p1, p2, p3, p4, p5, p6, p7: out std_logic_vector(15 downto 0);
-			action_in: in std_logic;
-			done: out std_logic 	
-		);
+		rst, clk: in std_logic;
+		Fin1, Fin2 : in std_logic_vector(15 downto 0);
+		pout1, pout2 : out std_logic_vector(15 downto 0);
+		rw: in std_logic;
+		rw_stage : in std_logic_vector(1 downto 0);
+		action_in: in std_logic;
+		done:	out std_logic 	-- 0 for write action, 1 for read action
+    );
 	end component idct;
 	
+	signal rw : std_logic;
+	signal rw_stage : std_logic_vector(1 downto 0);
+	signal Fin1, Fin2, pout1, pout2: std_logic_vector(15 downto 0);
 	signal action_idct, idct_done : std_logic;
-	signal F0, F1, F2, F3, F4, F5, F6, F7: std_logic_vector(15 downto 0);
-	signal p0, p1, p2, p3, p4, p5, p6, p7: std_logic_vector(15 downto 0);
-	
-	
+
 	-----------------------------------------------------------------
 	-- BRAM
 	-----------------------------------------------------------------
@@ -99,16 +102,17 @@ architecture rtl of idct2d is
 	signal tram_addr2: std_logic_vector(5 downto 0);
 	signal tram_we1	: std_logic;
 	signal tram_we2	: std_logic;
-	signal tram_di1 : std_logic_vector(15 downto 0);
-	signal tram_di2 : std_logic_vector(15 downto 0);
+	--signal tram_di1 : std_logic_vector(15 downto 0);
+	--signal tram_di2 : std_logic_vector(15 downto 0);
 	signal tram_do1 : std_logic_vector(15 downto 0);
 	signal tram_do2 : std_logic_vector(15 downto 0);
 
 	signal reading_block : std_logic;
 	
 	signal read_count : std_logic_vector(2 downto 0);
+	--signal write_count : std_logic_vector(2 downto 0);
 	signal row_index : std_logic_vector(6 downto 0);
-	signal col_index : std_logic_vector(6 downto 0);
+	signal col_index : std_logic_vector(5 downto 0);
 begin
 
 	ahbso.hresp   <= "00";
@@ -140,8 +144,8 @@ begin
 		Addr2	=> tram_addr2,
 		WE1		=> tram_we1,
 		WE2		=> tram_we2,
-		Data_In1	=> tram_di1,
-		Data_In2	=> tram_di2,
+		Data_In1	=> pout1,
+		Data_In2	=> pout2,
 		Data_Out1	=> tram_do1,
 		Data_Out2	=> tram_do2
 	);
@@ -149,8 +153,8 @@ begin
 	my_idct_1d : idct
 	port map (
 		rst, clk, 
-		F0, F1, F2, F3, F4, F5, F6, F7,
-		p0, p1, p2, p3, p4, p5, p6, p7,
+		Fin1, Fin2, pout1, pout2,
+		rw, rw_stage,
 		action_idct,
 		idct_done
 	);
@@ -182,8 +186,6 @@ begin
 		end if;
 	end process;
 	
-
-	
 	-- the wr_addr_fetch process latch the write address so that it
 	-- can be used in the data fetch cycle as the destination pointer
 	--
@@ -195,7 +197,8 @@ begin
 		elsif rising_edge(clk) then
 			if (ahbsi.hsel(ahbndx) and ahbsi.htrans(1) and
 				ahbsi.hready and ahbsi.hwrite) = '1' then
-				addr_wr <= ahbsi.haddr;
+				--addr_wr <= ahbsi.haddr;
+				addr_wr <= ahbsi.haddr(7 downto 0);
 				wr_valid <= '1';
 			else
 				wr_valid <= '0';
@@ -215,11 +218,7 @@ begin
 				action <= '0';
 			end if;
 			if (wr_valid = '1') then
-				-- if addr/2 is 0~63 => addr/4 is 0~31
-				if addr_wr(7 downto 2) >= "000000" and addr_wr(7 downto 2) < "100000" then
-					-- write to bram	
-				-- if addr/4 is 32
-				elsif addr_wr(7 downto 2) = "100000" then
+				if addr_wr(7 downto 2) = "100000" then
 					action <= ahbsi.hwdata(0);
 				end if;
 			end if;
@@ -239,12 +238,12 @@ begin
 			if ((ahbsi.hsel(ahbndx) and ahbsi.htrans(1) and
 				ahbsi.hready and (not ahbsi.hwrite)) = '1') then
 				-- if addr/2 is 0~63 => addr/4 is 0~31, wait one cycle for ram reading
-				if ahbsi.haddr(7 downto 2) >= "000000" and ahbsi.haddr(7 downto 2) < "100000" then
+				if ahbsi.haddr(7) = '0' then -- ahbsi.haddr(7) < "10000000"
 					reading_block <= '1';
 				-- if addr/4 is 32
 				elsif ahbsi.haddr(7 downto 2) = "100000" then
-					ahbso.hrdata(31 downto 1) <= (others => '0');
-					ahbso.hrdata(0) <= action;
+					--ahbso.hrdata(31 downto 1) <= (others => '0');
+					ahbso.hrdata <= (31 downto 1 => '0') & action;
 				end if;
 			elsif (reading_block = '1') then
 				ahbso.hrdata(31 downto 16) <= iram_do1;
@@ -278,13 +277,13 @@ begin
 				next_state <= ready;
 			end if;
 		when stage0 =>
-			if(col_index(5 downto 3) = "110" and stage_counter = 7) then	-- if we reach the last row and column
+			if(col_index(5 downto 3) = "110" and stage_counter = "111") then	-- if we reach the last row and column
 				next_state <= stage1;
 			else
 				next_state <= stage0;
 			end if;
 		when stage1 =>
-			if(col_index(5 downto 3) = "110" and stage_counter = 7) then	-- if we reach the last row and column
+			if(col_index(5 downto 3) = "110" and stage_counter = "111") then	-- if we reach the last row and column
 				next_state <= ready;
 			else
 				next_state <= stage1;
@@ -296,13 +295,13 @@ begin
 	stage_counter_control: process(rst, clk)
 	begin
 		if (rst='0') then
-			stage_counter <= "00000";
+			stage_counter <= "000";
 		elsif (rising_edge(clk)) then
 			if( prev_substate = write_p and col_index(5 downto 3) = "110" )then		-- if col_index reach last row
-				if( stage_counter < 7) then					-- if we not reach the last column
+				if( not (stage_counter = "111")) then					-- if we not reach the last column
 					stage_counter <= stage_counter + 1;
 				elsif(prev_state = stage0 or prev_state = stage1) then
-					stage_counter <= "00000";
+					stage_counter <= "000";
 				end if;
 			end if;
 		end if;
@@ -321,6 +320,23 @@ begin
 		end if;
 	end process action_idct_control;
 	
+	process(clk, rst)
+	begin
+		if (rst='0') then
+			rw <= '0';
+		elsif (rising_edge(clk)) then
+			if next_substate = read_f and read_count < "011" then
+				rw <= '1';
+			else
+				rw <= '0';
+			end if;
+		end if;
+	end process;
+	
+	rw_stage <= read_count(1 downto 0) when prev_substate=read_F else 
+				col_index(5 downto 4) + 1 when prev_substate=write_p else 
+				"00";
+
 	sub_state_control: process(prev_substate, col_index, action, idct_done, read_count)
 	begin
 			case prev_substate is
@@ -344,7 +360,7 @@ begin
 				end if;
 			when write_p =>
 					if(col_index(5 downto 3) = "110")then		-- if col_index reach last row
-						if(stage_counter = 7) then
+						if(stage_counter = "111") then
 							next_substate <= ready;
 						else
 							next_substate <= read_f;					-- go to read next row
@@ -362,26 +378,20 @@ begin
 	-- for interface block ram
 	iram_addr1 <= 	ahbsi.haddr(6 downto 1) when prev_state = ready else 	--write
 					row_index(5 downto 0) when prev_state = stage0 else	--read, first write
-					col_index(5 downto 0) when prev_state = stage1 else	--write
-					"000000";
-	iram_addr2 <= 	iram_addr1 + 1 when prev_state = ready or prev_state = stage0 else	--read, first write
-					iram_addr1 + 8 when prev_state = stage1 else					--write
-					"000000";
+					col_index(5 downto 0); --when prev_state = stage1 else	--write
+					--"000000";
+	iram_addr2 <= 	(iram_addr1 or "000001") when prev_state = ready or prev_state = stage0 else	--read, first write
+					(iram_addr1 or "001000"); --when prev_state = stage1 else					--write
+					--"000000";
 	
 	iram_di1 <=	ahbsi.hwdata(31 downto 16) when prev_state = ready else
-				p0 when prev_state = stage1 and col_index(5 downto 3)="000" else
-				p2 when prev_state = stage1 and col_index(5 downto 3)="010" else
-				p4 when prev_state = stage1 and col_index(5 downto 3)="100" else
-				p6 when prev_state = stage1 and col_index(5 downto 3)="110" else
-				( others => '0' );
+				pout1; --when prev_state = stage1 else
+				--( others => '0' );
 	iram_di2 <=  ahbsi.hwdata(15 downto 0) 	when prev_state = ready else
-				p1 when prev_state = stage1 and col_index(5 downto 3)="000" else	
-				p3 when prev_state = stage1 and col_index(5 downto 3)="010" else
-				p5 when prev_state = stage1 and col_index(5 downto 3)="100" else
-				p7 when prev_state = stage1 and col_index(5 downto 3)="110" else
-				( others => '0' );
+				pout2; --when prev_state = stage1 else
+				--( others => '0' );
 	iram_we1 <= '1' when ((ahbsi.hsel(ahbndx) and ahbsi.htrans(1) and ahbsi.hready and ahbsi.hwrite) = '1' 
-							and prev_state = ready and ahbsi.haddr(7 downto 2) >= "000000" and ahbsi.haddr(7 downto 2) < "100000") 
+							and prev_state = ready and ahbsi.haddr(7 downto 2) < "100000") 
 						or
 						(prev_state = stage1 and  prev_substate=write_p)
 				else '0';
@@ -389,53 +399,54 @@ begin
 
 	-- for transpose block ram
 	tram_addr1 <= 	col_index(5 downto 0) when prev_state = stage0 else	--write
-					row_index(5 downto 0) when prev_state = stage1 else	--read
-					"000000";
-	tram_addr2 <= 	tram_addr1 + 8 when prev_state = stage0 else
-					tram_addr1 + 1 when prev_state = stage1 else
-					"000000";
+					row_index(5 downto 0); --when prev_state = stage1 else	--read
+					--"000000";
+	tram_addr2 <= 	--tram_addr1 + 8 when prev_state = stage0 else
+					(tram_addr1 or "001000") when prev_state = stage0 else
+					(tram_addr1 or "000001"); --when prev_state = stage1 else
+					--"000000";
+	--tram_di1 <=	pout1;
+	--tram_di2 <= pout2;
 	
-	tram_di1 <=	p0 when prev_state = stage0 and col_index(5 downto 3)="000" else
-				p2 when prev_state = stage0 and col_index(5 downto 3)="010" else
-				p4 when prev_state = stage0 and col_index(5 downto 3)="100" else
-				p6 when prev_state = stage0 and col_index(5 downto 3)="110" else
-				( others => '0' );
-	tram_di2 <= p1 when prev_state = stage0 and col_index(5 downto 3)="000" else
-				p3 when prev_state = stage0 and col_index(5 downto 3)="010" else
-				p5 when prev_state = stage0 and col_index(5 downto 3)="100" else
-				p7 when prev_state = stage0 and col_index(5 downto 3)="110" else
-				( others => '0' );
 	tram_we1 <= '1' when prev_state = stage0 and prev_substate=write_p else '0';
 	tram_we2 <= tram_we1;
+	
+	Fin1 <= iram_do1 when  prev_state = stage0  else 
+			tram_do1; --when  prev_state = stage1  else 
+			--(others=>'0');
+	Fin2 <= iram_do2 when  prev_state = stage0  else 
+			tram_do2; --when  prev_state = stage1  else 
+			--(others=>'0');
+	
+	read_count_control : process(rst, clk)
+	begin
+		if (rst='0') then
+			read_count <= "000";
+		elsif (rising_edge(clk)) then
+			if(read_count = "000" and prev_substate = read_F) or (read_count > "000" and read_count(2) = '0' )then
+				read_count <= read_count + 1;
+			else	-- else if we will read f
+				read_count <= "000";
+			end if;
+		end if;
+	end process read_count_control;
 	
 	row_agu: process(rst, clk)
 	begin
 		if (rst='0') then
 			row_index <= (others => '0');
-			read_count <= "000";
-			-- f_index <= 0;
 		elsif (rising_edge(clk)) then
-			if ( next_state = stage0 or next_state = stage1) then	-- if we will change to stage0/1 or in the same stage
-				--if(stage_counter < 8)then
-					if(row_index = "1000000")then		-- if row_index = 64, next will be 0
-						row_index <= (others => '0');
-						read_count <= "000";
-					elsif(next_substate = read_F) then	-- else if we will read f
-						row_index <= row_index + 2;			-- acc the row_index ( we need to assign address first, because
-															-- the bram reading need one more cycle to get result )
-						if( prev_substate = read_F )then		
-							read_count <= read_count + 1;
-						else
-							read_count <= "000";
-						end if;
-					end if;
-				--else
-				--	row_index <= (others => '0');
-				--end if;
-			else
-				row_index <= (others => '0');	-- re-count the row_index, read_count
-				read_count <= "000";
-			end if;
+			--if ( next_state = stage0 or next_state = stage1) then	-- if we will change to stage0/1 or in the same stage
+				if(row_index = "1000000")then		-- if row_index = 64, next will be 0
+					row_index <= (others => '0');
+				elsif(next_substate = read_f and read_count < "011") then	-- else if we will read f
+					--row_index <= row_index + 2;	
+					row_index <= (row_index(6 downto 1) + 1) & '0';			-- acc the row_index ( we need to assign address first, because
+														-- the bram reading need one more cycle to get result )
+				end if;
+			--else
+			--	row_index <= (others => '0');	-- re-count the row_index, read_count
+			--end if;
 		end if;
 	end process row_agu;
 	
@@ -443,64 +454,24 @@ begin
 	begin
 		if (rst='0') then
 			col_index <= (others => '0');
-			-- f_index <= 0;
 		elsif (rising_edge(clk)) then
-			if ( next_state = stage0 or next_state = stage1) then		-- if we will change to stage0/1 or in the same stage
-				--if(stage_counter < 8)then
-					if(prev_substate = write_p) then						-- if we are writing
-						if( next_substate = write_p) then									-- if we will write to the same column
-							col_index <= col_index + 16;										-- set the next col_index
-						elsif(next_substate = read_f and next_state = prev_state ) then		-- else if next substate is read_f and next state is the same,
-																							-- so we reach the last row
-							col_index <= (6 downto 3 => '0') & (col_index(2 downto 0)+1);		-- go back to first row
-						else															
-							col_index <= (others => '0');
-						end if;
+			--if ( next_state = stage0 or next_state = stage1) then		-- if we will change to stage0/1 or in the same stage
+				if(prev_substate = write_p) then						-- if we are writing
+					if( next_substate = write_p) then									-- if we will write to the same column
+						--col_index <= col_index + 16;										-- set the next col_index
+						col_index <= (col_index(5 downto 4) + 1) & col_index(3 downto 0);	
+					elsif(next_substate = read_f and next_state = prev_state ) then		-- else if next substate is read_f and next state is the same,
+																						-- so we reach the last row
+						col_index <= (5 downto 3 => '0') & (col_index(2 downto 0)+1);		-- go back to first row
+					elsif(next_state /= prev_state)then															
+						col_index <= (others => '0');
 					end if;
-			else
-				col_index <= (others => '0');
-				--end if;
-			end if;
+				end if;
+			--else
+			--	col_index <= (others => '0');
+			--end if;
 		end if;
 	end process col_agu;
-	
-	
-	read_f_process: process(rst, clk)
-	variable ram_out1 : std_logic_vector(15 downto 0);
-	variable ram_out2 : std_logic_vector(15 downto 0);
-	begin
-		if (rst='0') then
-			F0 <= (others => '0'); F1 <= (others => '0');
-            F2 <= (others => '0'); F3 <= (others => '0');
-            F4 <= (others => '0'); F5 <= (others => '0');
-            F6 <= (others => '0'); F7 <= (others => '0');
-		elsif (rising_edge(clk)) then
-			if(prev_substate = read_f) then
-				if prev_state = stage0 then 
-					ram_out1 := iram_do1; 
-					ram_out2 := iram_do2;
-				else 
-					ram_out1 := tram_do1;
-					ram_out2 := tram_do2;
-				end if;
-				case read_count(1 downto 0) is
-				when "00" =>
-					F0 <= ram_out1;
-					F1 <= ram_out2;
-				when "01" =>
-					F2 <= ram_out1;
-					F3 <= ram_out2;
-				when "10" =>
-					F4 <= ram_out1;
-					F5 <= ram_out2;
-				when "11" =>
-					F6 <= ram_out1;
-					F7 <= ram_out2;
-				when others => null;
-				end case;
-			end if;
-		end if;
-	end process read_f_process;
 
 -- pragma translate_off
 	bootmsg : report_version
