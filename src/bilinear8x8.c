@@ -14,7 +14,7 @@
 #include "bilinear8x8.h"
 
 #define USE_HW_MC_LAB3_ORI 0
-#define USE_HW_MC 1
+#define USE_HW_MC 0
 
 #if USE_HW_MC_LAB3_ORI
 volatile int *reg_a  = (int *) 0xb0000000;
