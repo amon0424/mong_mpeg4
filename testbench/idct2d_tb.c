@@ -208,57 +208,61 @@ hw_idct_2d(short *block)
 int
 main(int arc, char *arv[])
 {
-    int block_no, idx;
+	int block_no, idx;
     int max_error, error, overall_max_error;
     short block[64];      /* buffer for IDCT test patterns */
     short block_hw[64];   /* buffer for HW IDCT inputs     */
 
-    //srand(clock());
+    srand(clock());
     printf("Start testing IDCT.\n");
-
-    /* generate test pattern */
-	printf("Source = [\n");
-    for (idx = 0; idx < 64; idx++)
+    overall_max_error = 0;
+    for (block_no = 0; block_no < 1024; block_no++)
     {
-        block[idx] = (short) ((rand() % 510) - 255);
-		 printf(((idx+1)%8)? "%5d " : "%5d\n", block[idx]);
-    }
-	printf("]\n");
+        /* generate test pattern */
+        for (idx = 0; idx < 64; idx++)
+        {
+            block[idx] = (short) ((rand() % 510) - 255);
+        }
 
-    /* compute forward dct transform on the test blocks */
-    dct_2d(block);
+        /* compute forward dct transform on the test blocks */
+        //dct_2d(block);
 #if NO_ECOS /* memcpy() has problems under eCos 1.0.8 */
-    memcpy((void *) block_hw, (void *) block, sizeof(block_hw));
+        memcpy((void *) block_hw, (void *) block, sizeof(block_hw));
 #else
-    for (idx = 0; idx < 64; idx++)
-    {
-        block_hw[idx] = block[idx];
-    }
+        for (idx = 0; idx < 64; idx++)
+        {
+            block_hw[idx] = block[idx];
+        }
 #endif
 
-#if 1
-    /* display one 8x8 block of DCT test coefficients */
-    printf("DCT Coefficients = [\n");
-    for (idx = 0; idx < 64; idx++)
-    {
-        printf(((idx+1)%8)? "%5d " : "%5d\n", block[idx]);
-    }
-    printf("]\n");
+#if 0
+        /* display one 8x8 block of DCT test coefficients */
+        printf("DCT Coefficients = [\n");
+        for (idx = 0; idx < 64; idx++)
+        {
+            printf(((idx+1)%8)? "%5d " : "%5d\n", block[idx]);
+        }
+        printf("]\n");
 #endif
 
-    /* compute the C-Model idct output */
-    idct_2d(block);
+        /* compute the C-Model idct output */
+        idct_2d(block);
 
-    /* compute idct using the hardware logic */
-    hw_idct_2d(block_hw);
+        /* compute idct using the hardware logic */
+        hw_idct_2d(block_hw);
 
-	/* display one 8x8 block of DCT test coefficients */
-    printf("Result = [\n");
-    for (idx = 0; idx < 64; idx++)
-    {
-        printf(((idx+1)%8)? "%5d " : "%5d\n", block[idx]);
+        /* find peak error per pixel */
+        max_error = 0;
+        for (idx = 0; idx < 64; idx++)
+        {
+            error = abs(block_hw[idx] - block[idx]);
+            if (error > max_error) max_error = error;
+        }
+
+        printf("Peak HW error @ block #%4d = %d\n", block_no, max_error);
+        if (max_error > overall_max_error) overall_max_error = max_error;
     }
-    printf("]\n");
+    printf("\nOverall max HW IDCT pixel error = %d\n", overall_max_error);
 
     return 0;
 }
