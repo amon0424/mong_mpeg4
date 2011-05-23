@@ -315,7 +315,7 @@ begin
 		if (rst='0') then
 			action_idct <= '0';
 		elsif (rising_edge(clk)) then
-			if prev_substate = read_f and read_count(1 downto 0) = "10" then
+			if prev_substate = read_f and read_count = "011" then
 				action_idct <= '1';
 			else
 				action_idct <= '0';
@@ -328,7 +328,7 @@ begin
 		if (rst='0') then
 			rw <= '0';
 		elsif (rising_edge(clk)) then
-			if next_substate = read_f and read_count < "011" then
+			if prev_substate = read_f and read_count < "100" then
 				rw <= '1';
 			else
 				rw <= '0';
@@ -336,9 +336,21 @@ begin
 		end if;
 	end process;
 	
-	rw_stage <= read_count(1 downto 0) when prev_substate=read_F else 
-				col_index(5 downto 4) + 1 when prev_substate=write_p else 
-				"00";
+	process(clk, rst)
+	begin
+		if (rst='0') then
+			rw_stage <= "00";
+		elsif (rising_edge(clk)) then
+			case prev_substate is
+			when read_F =>
+				rw_stage <= read_count(1 downto 0);
+			when write_p=>
+				rw_stage <= col_index(5 downto 4) + 1;
+			when others=>
+				rw_stage <= "00";
+			end case;
+		end if;
+	end process;
 
 	sub_state_control: process(prev_substate, col_index, action, idct_done, read_count)
 	begin
@@ -350,7 +362,7 @@ begin
 					next_substate <= ready;
 				end if;
 			when read_f =>
-				if(read_count = "011")then
+				if(read_count = "100")then
 					next_substate <= idct_1d;
 				else
 					next_substate <= read_f;
@@ -443,7 +455,7 @@ begin
 			--if ( next_state = stage0 or next_state = stage1) then	-- if we will change to stage0/1 or in the same stage
 				if(row_index(6) = '1')then		-- if row_index = 64, next will be 0
 					row_index <= (others => '0');
-				elsif(next_substate = read_f and read_count < "011") then	-- else if we will read f
+				elsif(prev_substate = read_f and read_count < "100") then	-- else if we will read f
 					--row_index <= row_index + 2;	
 					row_index(6 downto 1) <= (row_index(6 downto 1) + 1);			-- acc the row_index ( we need to assign address first, because
 														-- the bram reading need one more cycle to get result )
@@ -461,13 +473,15 @@ begin
 		elsif (rising_edge(clk)) then
 			--if ( next_state = stage0 or next_state = stage1) then		-- if we will change to stage0/1 or in the same stage
 				if(prev_substate = write_p) then						-- if we are writing
-					if( next_substate = write_p) then									-- if we will write to the same column
+					--if( prev_substate = write_p) then									-- if we will write to the same column
+					if(col_index(5 downto 4) < "11") then	
 						--col_index <= col_index + 16;										-- set the next col_index
 						col_index <= (col_index(5 downto 4) + 1) & col_index(3 downto 0);	
-					elsif(next_substate = read_f and next_state = prev_state ) then		-- else if next substate is read_f and next state is the same,
-																						-- so we reach the last row
+					--elsif(prev_substate = read_f and prev_state = prev_state ) then		-- else if next substate is read_f and next state is the same,
+					elsif(col_index(2 downto 0) < "111") then																	-- so we reach the last row
 						col_index <= (5 downto 3 => '0') & (col_index(2 downto 0)+1);		-- go back to first row
-					elsif(next_state /= prev_state)then															
+					--elsif(next_state /= prev_state)then	
+					else
 						col_index <= (others => '0');
 					end if;
 				end if;
