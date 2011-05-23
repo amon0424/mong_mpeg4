@@ -47,8 +47,8 @@ architecture rtl of idct2d is
 	signal prev_substate, next_substate: state;
 	signal prev_state, next_state: state;
 	
-	--signal stage : std_logic_vector(1 downto 0);
-	signal stage_counter: unsigned(2 downto 0);
+	signal stage : std_logic_vector(1 downto 0);
+	signal stage_counter: std_logic_vector(2 downto 0);
 	signal action : std_logic;
 	
 	-----------------------------------------------------------------
@@ -218,7 +218,8 @@ begin
 				action <= '0';
 			end if;
 			if (wr_valid = '1') then
-				if addr_wr(7 downto 2) = "100000" then
+				--if addr_wr(7 downto 2) = "100000" then
+				if addr_wr(7) = '1' then
 					action <= ahbsi.hwdata(0);
 				end if;
 			end if;
@@ -241,7 +242,8 @@ begin
 				if ahbsi.haddr(7) = '0' then -- ahbsi.haddr(7) < "10000000"
 					reading_block <= '1';
 				-- if addr/4 is 32
-				elsif ahbsi.haddr(7 downto 2) = "100000" then
+				--elsif ahbsi.haddr(7 downto 2) = "100000" then
+				else --if ahbsi.haddr(7) = '1' then
 					--ahbso.hrdata(31 downto 1) <= (others => '0');
 					ahbso.hrdata <= (31 downto 1 => '0') & action;
 				end if;
@@ -267,7 +269,7 @@ begin
 		end if;
 	end process FSM;
 	
-	state_control: process(prev_state, col_index, action, rst)
+	state_control: process(prev_state, col_index, action)
 	begin
 		case prev_state is
 		when ready =>
@@ -277,18 +279,19 @@ begin
 				next_state <= ready;
 			end if;
 		when stage0 =>
-			if(col_index(5 downto 3) = "110" and stage_counter = "111") then	-- if we reach the last row and column
+			if(col_index(5 downto 4) = "11" and stage_counter = "111") then	-- if we reach the last row and column
 				next_state <= stage1;
 			else
 				next_state <= stage0;
 			end if;
 		when stage1 =>
-			if(col_index(5 downto 3) = "110" and stage_counter = "111") then	-- if we reach the last row and column
+			if(col_index(5 downto 4) = "11" and stage_counter = "111") then	-- if we reach the last row and column
 				next_state <= ready;
 			else
 				next_state <= stage1;
 			end if;
-		when others => null;
+		when others => 
+			next_state <= ready;
 		end case;
 	end process state_control;
 	
@@ -297,8 +300,8 @@ begin
 		if (rst='0') then
 			stage_counter <= "000";
 		elsif (rising_edge(clk)) then
-			if( prev_substate = write_p and col_index(5 downto 3) = "110" )then		-- if col_index reach last row
-				if( not (stage_counter = "111")) then					-- if we not reach the last column
+			if( prev_substate = write_p and col_index(5 downto 4) = "11" )then		-- if col_index reach last row
+				if( stage_counter /= "111") then					-- if we not reach the last column
 					stage_counter <= stage_counter + 1;
 				elsif(prev_state = stage0 or prev_state = stage1) then
 					stage_counter <= "000";
@@ -312,7 +315,7 @@ begin
 		if (rst='0') then
 			action_idct <= '0';
 		elsif (rising_edge(clk)) then
-			if prev_substate = read_f and read_count = "010" then
+			if prev_substate = read_f and read_count(1 downto 0) = "10" then
 				action_idct <= '1';
 			else
 				action_idct <= '0';
@@ -359,7 +362,7 @@ begin
 					next_substate <= write_p;
 				end if;
 			when write_p =>
-					if(col_index(5 downto 3) = "110")then		-- if col_index reach last row
+					if(col_index(5 downto 4) = "11")then		-- if col_index reach last row
 						if(stage_counter = "111") then
 							next_substate <= ready;
 						else
@@ -368,7 +371,8 @@ begin
 					else
 						next_substate <= write_p;				-- else continue write 
 					end if;
-			when others => null;
+			when others => 
+				next_substate <= ready;
 			end case;
 	end process sub_state_control;
 	---------------------------------------------------------------------
@@ -391,7 +395,7 @@ begin
 				pout2; --when prev_state = stage1 else
 				--( others => '0' );
 	iram_we1 <= '1' when ((ahbsi.hsel(ahbndx) and ahbsi.htrans(1) and ahbsi.hready and ahbsi.hwrite) = '1' 
-							and prev_state = ready and ahbsi.haddr(7 downto 2) < "100000") 
+							and prev_state = ready and ahbsi.haddr(7) = '0') 
 						or
 						(prev_state = stage1 and  prev_substate=write_p)
 				else '0';
@@ -437,11 +441,11 @@ begin
 			row_index <= (others => '0');
 		elsif (rising_edge(clk)) then
 			--if ( next_state = stage0 or next_state = stage1) then	-- if we will change to stage0/1 or in the same stage
-				if(row_index = "1000000")then		-- if row_index = 64, next will be 0
+				if(row_index(6) = '1')then		-- if row_index = 64, next will be 0
 					row_index <= (others => '0');
 				elsif(next_substate = read_f and read_count < "011") then	-- else if we will read f
 					--row_index <= row_index + 2;	
-					row_index <= (row_index(6 downto 1) + 1) & '0';			-- acc the row_index ( we need to assign address first, because
+					row_index(6 downto 1) <= (row_index(6 downto 1) + 1);			-- acc the row_index ( we need to assign address first, because
 														-- the bram reading need one more cycle to get result )
 				end if;
 			--else
