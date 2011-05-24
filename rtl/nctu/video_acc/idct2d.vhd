@@ -345,7 +345,12 @@ begin
 			when read_F =>
 				rw_stage <= read_count(1 downto 0);
 			when write_p=>
-				rw_stage <= col_index(5 downto 4) + 1;
+				--rw_stage <= col_index(5 downto 4) + 1;
+				if(rw_stage < "11")then
+					rw_stage <= rw_stage + 1;
+				else
+					rw_stage <= "00";
+				end if;
 			when others=>
 				rw_stage <= "00";
 			end case;
@@ -472,11 +477,13 @@ begin
 			col_index <= (others => '0');
 		elsif (rising_edge(clk)) then
 			--if ( next_state = stage0 or next_state = stage1) then		-- if we will change to stage0/1 or in the same stage
-				if(prev_substate = write_p) then						-- if we are writing
+				if(prev_substate = write_p ) then						-- if we are writing
 					--if( prev_substate = write_p) then									-- if we will write to the same column
-					if(col_index(5 downto 4) < "11") then	
+					if(col_index(5 downto 4) < "11" ) then	
 						--col_index <= col_index + 16;										-- set the next col_index
-						col_index <= (col_index(5 downto 4) + 1) & col_index(3 downto 0);	
+						if( rw_stage > "00" ) then
+							col_index <= (col_index(5 downto 4) + 1) & col_index(3 downto 0);	
+						end if;
 					--elsif(prev_substate = read_f and prev_state = prev_state ) then		-- else if next substate is read_f and next state is the same,
 					elsif(col_index(2 downto 0) < "111") then																	-- so we reach the last row
 						col_index <= (5 downto 3 => '0') & (col_index(2 downto 0)+1);		-- go back to first row
@@ -484,6 +491,10 @@ begin
 					else
 						col_index <= (others => '0');
 					end if;
+				-- elsif(prev_substate = write_p and col_index(2 downto 0) < "111") then
+					-- col_index <= (5 downto 3 => '0') & (col_index(2 downto 0)+1);
+				-- else
+					-- col_index <= (others => '0');
 				end if;
 			--else
 			--	col_index <= (others => '0');
