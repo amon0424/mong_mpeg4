@@ -106,7 +106,7 @@ architecture rtl of idct2d is
 	
 	signal hwrite_stage : std_logic_vector(1 downto 0);
 	signal hread_stage : std_logic_vector(1 downto 0);
-	signal read_data : std_logic_vector(31 downto 0);
+	signal read_data : std_logic_vector(15 downto 0);
 	
 	signal read_count : std_logic_vector(3 downto 0);
 	--signal write_count : std_logic_vector(2 downto 0);
@@ -169,7 +169,7 @@ begin
 				else
 					ahbso.hready <= '1';
 				end if;
-			elsif reading_block = '1' or hwrite_stage = "01" then
+			elsif hread_stage = "10" or hwrite_stage = "01" then
 				ahbso.hready <= '1';
 			end if;
 		end if;
@@ -185,10 +185,13 @@ begin
 			wr_valid <= '0';
 		elsif rising_edge(clk) then
 			if (ahbsi.hsel(ahbndx) and ahbsi.htrans(1) and
-				ahbsi.hready and ahbsi.hwrite) = '1' then
+				ahbsi.hready) = '1' then
 				--addr_wr <= ahbsi.haddr;
+				
 				addr_wr <= ahbsi.haddr(7 downto 0);
-				wr_valid <= '1';
+				if(ahbsi.hwrite='1')then
+					wr_valid <= '1';
+				end if;
 			else
 				wr_valid <= '0';
 			end if;
@@ -251,7 +254,7 @@ begin
 					ahbso.hrdata <= (31 downto 1 => '0') & action;
 				end if;
 			elsif (hread_stage = "10") then
-				ahbso.hrdata <= read_data;
+				ahbso.hrdata <= read_data & iram_do1;
 				--ahbso.hrdata(15 downto 0) <= iram_do2;
 				--reading_block <= '0';
 			end if;
@@ -271,14 +274,14 @@ begin
 			end if;
 			
 			if (hread_stage = "01") then
-				read_data(31 downto 16) <= iram_do1;
+				read_data <= iram_do1;
 				hread_stage <= "10";
 			elsif (hread_stage = "10") then
-				read_data(15 downto 0) <= iram_do1;
 				hread_stage <= "00";
 			end if;
 		end if;
 	end process;
+
 	
 	---------------------------------------------------------------------
 	--  Controller (Finite State Machines) Begins Here
@@ -422,8 +425,9 @@ begin
     ---------------------------------------------------------------------
 	
 	-- for interface block ram
-	iram_addr1 <= 	ahbsi.haddr(6 downto 1) when prev_state = ready  and hwrite_stage = "00" else 	--write
-					addr_wr(6 downto 1) when prev_state = ready and hwrite_stage = "01" else
+	iram_addr1 <= 	ahbsi.haddr(6 downto 1) when ((prev_state = ready and ahbsi.hsel(ahbndx)='1')
+						 and ((hwrite_stage = "00" and ahbsi.hwrite = '1') or (hread_stage = "00" and ahbsi.hwrite = '0'))) else 	--write
+					addr_wr(6 downto 1) + 1 when prev_state = ready and (hwrite_stage = "01" or hread_stage="01") else
 					row_index(5 downto 0) when prev_state = stage0 else	--read, first write
 					col_index(5 downto 0); --when prev_state = stage1 else	--write
 					--"000000";
