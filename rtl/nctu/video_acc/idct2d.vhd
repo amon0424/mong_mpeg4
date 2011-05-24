@@ -269,7 +269,7 @@ begin
 		end if;
 	end process FSM;
 	
-	state_control: process(prev_state, col_index, action)
+	state_control: process(prev_state, col_index, action, stage_counter)
 	begin
 		case prev_state is
 		when ready =>
@@ -357,7 +357,7 @@ begin
 		end if;
 	end process;
 
-	sub_state_control: process(prev_substate, col_index, action, idct_done, read_count)
+	sub_state_control: process(prev_substate, col_index, action, idct_done, read_count, stage_counter)
 	begin
 			case prev_substate is
 			when ready =>
