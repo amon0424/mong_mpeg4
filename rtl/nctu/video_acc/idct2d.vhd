@@ -380,7 +380,7 @@ begin
     ---------------------------------------------------------------------
 	
 	-- for interface block ram
-	iram_addr1 <= 	ahbsi.haddr(6 downto 1) when prev_state = ready else 	--write
+	iram_addr1 <= 	addr_wr(6 downto 1) when prev_state = ready else 	--write
 					row_index(5 downto 0) when prev_state = stage0 else	--read, first write
 					col_index(5 downto 0); --when prev_state = stage1 else	--write
 					--"000000";
@@ -394,8 +394,9 @@ begin
 	iram_di2 <=  ahbsi.hwdata(15 downto 0) 	when prev_state = ready else
 				pout2; --when prev_state = stage1 else
 				--( others => '0' );
-	iram_we1 <= '1' when ((ahbsi.hsel(ahbndx) and ahbsi.htrans(1) and ahbsi.hready and ahbsi.hwrite) = '1' 
-							and prev_state = ready and ahbsi.haddr(7) = '0') 
+	iram_we1 <= '1' when --((ahbsi.hsel(ahbndx) and ahbsi.htrans(1) and ahbsi.hready and ahbsi.hwrite) = '1' 
+							--and prev_state = ready and ahbsi.haddr(7) = '0') 
+						(wr_valid = '1' and  addr_wr(7) = '0')
 						or
 						(prev_state = stage1 and  prev_substate=write_p)
 				else '0';
