@@ -196,7 +196,7 @@ begin
 			wr_valid <= '0';
 		elsif rising_edge(clk) then
 			if (ahbsi.hsel(ahbndx) and ahbsi.htrans(1) and
-				ahbsi.hready and ahbsi.hwrite) = '1' then
+				ahbsi.hready and ahbsi.hwrite ) = '1' then
 				--addr_wr <= ahbsi.haddr;
 				addr_wr <= ahbsi.haddr(7 downto 0);
 				wr_valid <= '1';
@@ -380,7 +380,8 @@ begin
     ---------------------------------------------------------------------
 	
 	-- for interface block ram
-	iram_addr1 <= 	addr_wr(6 downto 1) when prev_state = ready else 	--write
+	iram_addr1 <= 	addr_wr(6 downto 1) when prev_state = ready and wr_valid='1' else 	--write
+					ahbsi.haddr(6 downto 1) when  prev_state = ready else 
 					row_index(5 downto 0) when prev_state = stage0 else	--read, first write
 					col_index(5 downto 0); --when prev_state = stage1 else	--write
 					--"000000";
