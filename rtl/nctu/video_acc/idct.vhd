@@ -47,8 +47,12 @@ use techmap.gencomp.all;
 entity idct is
     port(
 		rst, clk: in std_logic;
-		F0, F1, F2, F3, F4, F5, F6, F7: in std_logic_vector(15 downto 0);
-		p0, p1, p2, p3, p4, p5, p6, p7: out std_logic_vector(15 downto 0);
+		Fin1, Fin2 : in std_logic_vector(15 downto 0);
+		pout1, pout2 : out std_logic_vector(15 downto 0);
+		rw: in std_logic;
+		rw_stage : in std_logic_vector(1 downto 0);
+		--F0, F1, F2, F3, F4, F5, F6, F7: in std_logic_vector(15 downto 0);
+		--p0, p1, p2, p3, p4, p5, p6, p7: out std_logic_vector(15 downto 0);
 		action_in: in std_logic;
 		done:	out std_logic 	-- 0 for write action, 1 for read action
     );
@@ -67,7 +71,8 @@ architecture rtl of idct is
     signal hv_pr_state, hv_nx_state: state;
     signal g2p_pr_state, g2p_nx_state: state;
 
-   
+	signal F0, F1, F2, F3, F4, F5, F6, F7: std_logic_vector(15 downto 0);
+	signal p0, p1, p2, p3, p4, p5, p6, p7: std_logic_vector(15 downto 0);
     signal g0, g1, g2, g3, g4, g5, g6, g7: signed(31 downto 0);
 	
     signal v0, v1, v2, v3: std_logic_vector(15 downto 0);
@@ -108,7 +113,49 @@ begin
     --       completion of the IDCT logic
     --
 
-    action_control_process : process (clk, rst)
+    process (clk, rst)
+    begin
+        if (rst = '0') then
+			pout1 <= (others => '0');
+			pout2 <= (others => '0');
+        elsif rising_edge(clk) then
+			if(rw='0')then
+				case rw_stage is
+				when "00" =>
+					pout1 <= p0;
+					pout2 <= p1;
+				when "01" =>
+					pout1 <= p2;
+					pout2 <= p3;
+				when "10" =>
+					pout1 <= p4;
+					pout2 <= p5;
+				when "11" =>
+					pout1 <= p6;
+					pout2 <= p7;
+				when others => null;
+				end case;
+			else
+				case rw_stage is
+				when "00" =>
+					F0 <= Fin1;
+					F1 <= Fin2;
+				when "01" =>
+					F2 <= Fin1;
+					F3 <= Fin2;
+				when "10" =>
+					F4 <= Fin1;
+					F5 <= Fin2;
+				when "11" =>
+					F6 <= Fin1;
+					F7 <= Fin2;
+				when others => null;
+				end case;
+			end if;
+        end if;
+    end process;
+	
+	action_control_process : process (clk, rst)
     begin
         if (rst = '0') then
 			action <= '0';
@@ -124,7 +171,7 @@ begin
 				end if;
 			end if;
         end if;
-    end process;
+    end process action_control_process;
 
     ---------------------------------------------------------------------
     --  Controller (Finite State Machines) Begins Here
