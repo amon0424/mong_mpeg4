@@ -366,13 +366,13 @@ begin
 			rw_stage <= "000";
 			rw <= '0';
 		elsif (rising_edge(clk)) then
-			if prev_substate = read_f and read_count < "1000" then
+			if next_substate = read_f and read_count < "1000" then
 				rw <= '1';
 			else
 				rw <= '0';
 			end if;
 			
-			case prev_substate is
+			case next_substate is
 			when read_F =>
 				rw_stage <= read_count(2 downto 0);
 			when write_p=>
@@ -392,7 +392,7 @@ begin
 		if (rst='0') then
 			read_count <= "0000";
 		elsif (rising_edge(clk)) then
-			if(read_count = "0000" and prev_substate = read_F) or (read_count > "0000" and read_count(3) = '0' )then
+			if(read_count = "0000" and next_substate = read_F) or (read_count > "0000" and read_count(3) = '0' )then
 				read_count <= read_count + 1;
 			else	-- else if we will read f
 				read_count <= "0000";
@@ -407,7 +407,7 @@ begin
 		elsif (rising_edge(clk)) then
 			if(row_index(6) = '1')then		-- if row_index = 64, next will be 0
 				row_index <= (others => '0');
-			elsif(prev_substate = read_f and read_count < "1000") then	-- else if we will read f
+			elsif(next_substate = read_f and read_count < "1000") then	-- else if we will read f
 				row_index <= row_index + 1;			-- acc the row_index ( we need to assign address first, because
 													-- the bram reading need one more cycle to get result )
 			end if;

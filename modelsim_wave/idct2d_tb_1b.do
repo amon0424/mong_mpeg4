@@ -2,14 +2,14 @@ onerror {resume}
 quietly WaveActivateNextPane {} 0
 add wave -noupdate /testbench/cpu/my_idct2d/rst
 add wave -noupdate /testbench/cpu/my_idct2d/clk
-add wave -noupdate -group ahb /testbench/cpu/my_idct2d/ahbsi.hready
-add wave -noupdate -group ahb /testbench/cpu/my_idct2d/ahbsi.hwrite
-add wave -noupdate -group ahb -radix hexadecimal /testbench/cpu/my_idct2d/ahbsi.haddr
-add wave -noupdate -group ahb -radix hexadecimal /testbench/cpu/my_idct2d/ahbsi.hwdata
-add wave -noupdate -group ahb -color Violet -radix hexadecimal /testbench/cpu/my_idct2d/ahbso.hrdata
-add wave -noupdate -group ahb /testbench/cpu/my_idct2d/ahbsi
-add wave -noupdate -group ahb /testbench/cpu/my_idct2d/ahbso
-add wave -noupdate -group ahb -color Yellow /testbench/cpu/my_idct2d/ahbsi.hsel(7)
+add wave -noupdate -expand -group ahb /testbench/cpu/my_idct2d/ahbsi.hready
+add wave -noupdate -expand -group ahb /testbench/cpu/my_idct2d/ahbsi.hwrite
+add wave -noupdate -expand -group ahb -radix hexadecimal /testbench/cpu/my_idct2d/ahbsi.haddr
+add wave -noupdate -expand -group ahb -radix hexadecimal /testbench/cpu/my_idct2d/ahbsi.hwdata
+add wave -noupdate -expand -group ahb -color Violet -radix hexadecimal /testbench/cpu/my_idct2d/ahbso.hrdata
+add wave -noupdate -expand -group ahb /testbench/cpu/my_idct2d/ahbsi
+add wave -noupdate -expand -group ahb /testbench/cpu/my_idct2d/ahbso
+add wave -noupdate -expand -group ahb -color Yellow /testbench/cpu/my_idct2d/ahbsi.hsel(7)
 add wave -noupdate /testbench/cpu/my_idct2d/wr_valid
 add wave -noupdate -color Blue /testbench/cpu/my_idct2d/prev_state
 add wave -noupdate -color Blue /testbench/cpu/my_idct2d/prev_substate
@@ -26,7 +26,7 @@ add wave -noupdate /testbench/cpu/my_idct2d/action_idct
 add wave -noupdate -divider IDCT
 add wave -noupdate /testbench/cpu/my_idct2d/rw
 add wave -noupdate -radix unsigned /testbench/cpu/my_idct2d/rw_stage
-add wave -noupdate /testbench/cpu/my_idct2d/Fin
+add wave -noupdate -radix decimal /testbench/cpu/my_idct2d/Fin
 add wave -noupdate -radix decimal /testbench/cpu/my_idct2d/pout
 add wave -noupdate -group idct -radix decimal /testbench/cpu/my_idct2d/my_idct_1d/action
 add wave -noupdate -group idct -radix decimal /testbench/cpu/my_idct2d/my_idct_1d/action_two
@@ -99,7 +99,7 @@ add wave -noupdate -group tram -radix unsigned /testbench/cpu/my_idct2d/tram/Add
 add wave -noupdate -group tram -radix decimal /testbench/cpu/my_idct2d/tram/Data_In
 add wave -noupdate -group tram /testbench/cpu/my_idct2d/tram/Data_Out
 TreeUpdate [SetDefaultTree]
-WaveRestoreCursors {Begin {215871000 ps} 1} {End {294621000 ps} 1} {{Cursor 7} {231796922 ps} 0}
+WaveRestoreCursors {Begin {215871000 ps} 1} {End {293871000 ps} 1} {{Cursor 8} {244471000 ps} 0}
 configure wave -namecolwidth 256
 configure wave -valuecolwidth 168
 configure wave -justifyvalue left
@@ -114,8 +114,8 @@ configure wave -griddelta 40
 configure wave -timeline 0
 configure wave -timelineunits ns
 update
-WaveRestoreZoom {38495304 ps} {38838142 ps}
-bookmark add wave Done {{242527571 ps} {242870409 ps}} -none-
+WaveRestoreZoom {244299581 ps} {244642419 ps}
+bookmark add wave Done {{241721897 ps} {242064735 ps}} -none-
 bookmark add wave {Stage0 begin} {{231302427 ps} {231645265 ps}} -none-
-bookmark add wave {Stage1 begin} {{236901570 ps} {237244408 ps}} -none-
+bookmark add wave {Stage1 begin} {{236490162 ps} {236833 ns}} 0
 bookmark add wave hwrite {{215820129 ps} {216162967 ps}} 0
