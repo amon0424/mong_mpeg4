@@ -2,34 +2,32 @@ onerror {resume}
 quietly WaveActivateNextPane {} 0
 add wave -noupdate /testbench/cpu/my_idct2d/rst
 add wave -noupdate /testbench/cpu/my_idct2d/clk
-add wave -noupdate -color Yellow /testbench/cpu/my_idct2d/ahbsi.hsel(7)
-add wave -noupdate /testbench/cpu/my_idct2d/ahbsi.hready
-add wave -noupdate /testbench/cpu/my_idct2d/ahbsi.hwrite
-add wave -noupdate -radix hexadecimal /testbench/cpu/my_idct2d/ahbsi.haddr
-add wave -noupdate -radix hexadecimal /testbench/cpu/my_idct2d/ahbsi.hwdata
-add wave -noupdate -color Violet -radix hexadecimal /testbench/cpu/my_idct2d/ahbso.hrdata
-add wave -noupdate /testbench/cpu/my_idct2d/ahbsi
-add wave -noupdate /testbench/cpu/my_idct2d/ahbso
+add wave -noupdate -group ahb /testbench/cpu/my_idct2d/ahbsi.hready
+add wave -noupdate -group ahb /testbench/cpu/my_idct2d/ahbsi.hwrite
+add wave -noupdate -group ahb -radix hexadecimal /testbench/cpu/my_idct2d/ahbsi.haddr
+add wave -noupdate -group ahb -radix hexadecimal /testbench/cpu/my_idct2d/ahbsi.hwdata
+add wave -noupdate -group ahb -color Violet -radix hexadecimal /testbench/cpu/my_idct2d/ahbso.hrdata
+add wave -noupdate -group ahb /testbench/cpu/my_idct2d/ahbsi
+add wave -noupdate -group ahb /testbench/cpu/my_idct2d/ahbso
+add wave -noupdate -group ahb -color Yellow /testbench/cpu/my_idct2d/ahbsi.hsel(7)
 add wave -noupdate /testbench/cpu/my_idct2d/wr_valid
-add wave -noupdate /testbench/cpu/my_idct2d/addr_wr
 add wave -noupdate -color Blue /testbench/cpu/my_idct2d/prev_state
 add wave -noupdate -color Blue /testbench/cpu/my_idct2d/prev_substate
 add wave -noupdate /testbench/cpu/my_idct2d/next_state
 add wave -noupdate /testbench/cpu/my_idct2d/next_substate
 add wave -noupdate -radix unsigned /testbench/cpu/my_idct2d/stage_counter
 add wave -noupdate /testbench/cpu/my_idct2d/action
-add wave -noupdate -radix binary /testbench/cpu/my_idct2d/reading_block
 add wave -noupdate -radix unsigned /testbench/cpu/my_idct2d/read_count
 add wave -noupdate -color Cyan -radix decimal /testbench/cpu/my_idct2d/row_index
-add wave -noupdate -radix unsigned -subitemconfig {/testbench/cpu/my_idct2d/col_index(5) {-height 15 -radix unsigned} /testbench/cpu/my_idct2d/col_index(4) {-height 15 -radix unsigned} /testbench/cpu/my_idct2d/col_index(3) {-height 15 -radix unsigned} /testbench/cpu/my_idct2d/col_index(2) {-height 15 -radix unsigned} /testbench/cpu/my_idct2d/col_index(1) {-height 15 -radix unsigned} /testbench/cpu/my_idct2d/col_index(0) {-height 15 -radix unsigned}} /testbench/cpu/my_idct2d/col_index
-add wave -noupdate -divider IDCT
+add wave -noupdate -radix unsigned /testbench/cpu/my_idct2d/col_index
+add wave -noupdate -radix unsigned /testbench/cpu/my_idct2d/hwrite_stage
+add wave -noupdate -radix unsigned /testbench/cpu/my_idct2d/hread_stage
 add wave -noupdate /testbench/cpu/my_idct2d/action_idct
+add wave -noupdate -divider IDCT
 add wave -noupdate /testbench/cpu/my_idct2d/rw
 add wave -noupdate -radix unsigned /testbench/cpu/my_idct2d/rw_stage
-add wave -noupdate -radix decimal /testbench/cpu/my_idct2d/Fin1
-add wave -noupdate -radix decimal /testbench/cpu/my_idct2d/Fin2
-add wave -noupdate -radix decimal /testbench/cpu/my_idct2d/pout1
-add wave -noupdate -radix decimal /testbench/cpu/my_idct2d/pout2
+add wave -noupdate /testbench/cpu/my_idct2d/Fin
+add wave -noupdate -radix decimal /testbench/cpu/my_idct2d/pout
 add wave -noupdate -group idct -radix decimal /testbench/cpu/my_idct2d/my_idct_1d/action
 add wave -noupdate -group idct -radix decimal /testbench/cpu/my_idct2d/my_idct_1d/action_two
 add wave -noupdate -group idct -radix decimal /testbench/cpu/my_idct2d/my_idct_1d/main_cntr
@@ -88,8 +86,8 @@ add wave -noupdate -group idct -group h -radix decimal /testbench/cpu/my_idct2d/
 add wave -noupdate -group idct -group h -radix decimal /testbench/cpu/my_idct2d/my_idct_1d/h32
 add wave -noupdate -group idct -group h -radix decimal /testbench/cpu/my_idct2d/my_idct_1d/h33
 add wave -noupdate -divider BRAM
-add wave -noupdate -radix decimal -subitemconfig {/testbench/cpu/my_idct2d/iram/DataMEM(0) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(1) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(2) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(3) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(4) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(5) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(6) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(7) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(8) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(9) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(10) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(11) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(12) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(13) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(14) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(15) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(16) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(17) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(18) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(19) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(20) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(21) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(22) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(23) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(24) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(25) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(26) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(27) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(28) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(29) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(30) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(31) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(32) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(33) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(34) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(35) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(36) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(37) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(38) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(39) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(40) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(41) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(42) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(43) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(44) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(45) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(46) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(47) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(48) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(49) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(50) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(51) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(52) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(53) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(54) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(55) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(56) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(57) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(58) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(59) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(60) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(61) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(62) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/iram/DataMEM(63) {-height 15 -radix decimal}} /testbench/cpu/my_idct2d/iram/DataMEM
-add wave -noupdate -radix decimal -subitemconfig {/testbench/cpu/my_idct2d/tram/DataMEM(0) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(1) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(2) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(3) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(4) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(5) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(6) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(7) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(8) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(9) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(10) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(11) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(12) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(13) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(14) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(15) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(16) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(17) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(18) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(19) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(20) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(21) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(22) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(23) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(24) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(25) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(26) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(27) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(28) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(29) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(30) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(31) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(32) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(33) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(34) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(35) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(36) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(37) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(38) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(39) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(40) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(41) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(42) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(43) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(44) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(45) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(46) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(47) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(48) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(49) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(50) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(51) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(52) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(53) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(54) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(55) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(56) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(57) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(58) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(59) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(60) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(61) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(62) {-height 15 -radix decimal} /testbench/cpu/my_idct2d/tram/DataMEM(63) {-height 15 -radix decimal}} /testbench/cpu/my_idct2d/tram/DataMEM
+add wave -noupdate -radix decimal /testbench/cpu/my_idct2d/iram/DataMEM
+add wave -noupdate -radix decimal /testbench/cpu/my_idct2d/tram/DataMEM
 add wave -noupdate -group iram /testbench/cpu/my_idct2d/iram/CLK
 add wave -noupdate -group iram /testbench/cpu/my_idct2d/iram/WE
 add wave -noupdate -group iram /testbench/cpu/my_idct2d/iram/Addr
@@ -97,12 +95,12 @@ add wave -noupdate -group iram /testbench/cpu/my_idct2d/iram/Data_In
 add wave -noupdate -group iram /testbench/cpu/my_idct2d/iram/Data_Out
 add wave -noupdate -group tram /testbench/cpu/my_idct2d/tram/CLK
 add wave -noupdate -group tram /testbench/cpu/my_idct2d/tram/WE
-add wave -noupdate -group tram /testbench/cpu/my_idct2d/tram/Addr
-add wave -noupdate -group tram /testbench/cpu/my_idct2d/tram/Data_In
+add wave -noupdate -group tram -radix unsigned /testbench/cpu/my_idct2d/tram/Addr
+add wave -noupdate -group tram -radix decimal /testbench/cpu/my_idct2d/tram/Data_In
 add wave -noupdate -group tram /testbench/cpu/my_idct2d/tram/Data_Out
 TreeUpdate [SetDefaultTree]
-WaveRestoreCursors {{Cursor 2} {239396000 ps} 0} {{Stage0 begin} {231372327 ps} 1} {{Stage1 begin} {235171000 ps} 1} {done {239394647 ps} 1}
-configure wave -namecolwidth 304
+WaveRestoreCursors {Begin {215871000 ps} 1} {End {294621000 ps} 1} {{Cursor 7} {231796922 ps} 0}
+configure wave -namecolwidth 256
 configure wave -valuecolwidth 168
 configure wave -justifyvalue left
 configure wave -signalnamewidth 0
@@ -111,9 +109,13 @@ configure wave -datasetprefix 0
 configure wave -rowmargin 4
 configure wave -childrowmargin 2
 configure wave -gridoffset 0
-configure wave -gridperiod 1
+configure wave -gridperiod 25
 configure wave -griddelta 40
 configure wave -timeline 0
 configure wave -timelineunits ns
 update
-WaveRestoreZoom {0 ps} {649024 ps}
+WaveRestoreZoom {38495304 ps} {38838142 ps}
+bookmark add wave Done {{242527571 ps} {242870409 ps}} -none-
+bookmark add wave {Stage0 begin} {{231302427 ps} {231645265 ps}} -none-
+bookmark add wave {Stage1 begin} {{236901570 ps} {237244408 ps}} -none-
+bookmark add wave hwrite {{215820129 ps} {216162967 ps}} 0
