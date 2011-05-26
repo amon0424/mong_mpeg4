@@ -410,7 +410,7 @@ begin
 			iram_di2 <= (others => '0');
 		elsif (rising_edge(clk)) then
 			-- write enable
-			if (ahbsi.hsel(ahbndx) and ahbsi.htrans(1) and ahbsi.hready and ahbsi.hwrite and (not ahbsi.haddr(7))) = '1'
+			if (wr_valid and (not addr_wr(7))) = '1'
 				or (prev_state = stage1 and  next_substate=write_p) then
 				iram_we1 <= '1';
 			else
