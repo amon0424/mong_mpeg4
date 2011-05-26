@@ -11,21 +11,36 @@ volatile long *action   = (long *) 0xb0100080;
 void
 idct(short *block)
 {
+	//int idx, result, row;
+	//short* blockBase;
+	long* lblockBase;
+	//volatile long* fBase;
+	volatile long* pBase;
+
+	//lblockBase = (long*)block;
+	//blockBase = block;
+	//fBase = F_array;
+	//for(row=0;row<8;row++)
+	//{
+	//	*(fBase++) = *(lblockBase++);
+	//	*(fBase++) = *(lblockBase++);
+	//	*(fBase++) = *(lblockBase++);
+	//	*(fBase++) = *(lblockBase++);
+	//}
+
 	int idx, result, row;
 	short* blockBase;
-	unsigned long* lblockBase;
-	unsigned long* fBase;
-	unsigned long* pBase;
+	volatile long* fBase;
 
-	lblockBase = (long*)block;
 	blockBase = block;
 	fBase = F_array;
 	for(row=0;row<8;row++)
 	{
-		*(fBase++) = *(lblockBase++);
-		*(fBase++) = *(lblockBase++);
-		*(fBase++) = *(lblockBase++);
-		*(fBase++) = *(lblockBase++);
+		*(fBase++) = *((long *)blockBase);
+		*(fBase++) = *((long *)(blockBase+2));
+		*(fBase++) = *((long *)(blockBase+4));
+		*(fBase++) = *((long *)(blockBase+6));
+		blockBase += 8;
 	}
 
 	*action=1;
@@ -40,6 +55,28 @@ idct(short *block)
 		*(lblockBase++) = *(pBase++);
 		*(lblockBase++) = *(pBase++);
 	}
+
+	//blockBase = block;
+	//fBase = F_array;
+	//for(row=0;row<8;row++)
+	//{
+	//	result = *(fBase++);
+	//	*(blockBase++) = (short)(result >> 16);
+	//	*(blockBase++) = (short)(result);
+
+	//	result = *(fBase++);
+	//	*(blockBase++) = (short)(result >> 16);
+	//	*(blockBase++) = (short)(result);
+
+	//	result = *(fBase++);
+	//	*(blockBase++) = (short)(result >> 16);
+	//	*(blockBase++) = (short)(result);
+
+	//	result = *(fBase++);
+	//	*(blockBase++) = (short)(result >> 16);
+	//	*(blockBase++) = (short)(result);
+	//}
+
 }
 
 
