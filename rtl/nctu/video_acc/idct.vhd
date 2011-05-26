@@ -47,8 +47,12 @@ use techmap.gencomp.all;
 entity idct is
     port(
 		rst, clk: in std_logic;
-		F0, F1, F2, F3, F4, F5, F6, F7: in std_logic_vector(15 downto 0);
-		p0, p1, p2, p3, p4, p5, p6, p7: out std_logic_vector(15 downto 0);
+		Fin : in std_logic_vector(15 downto 0);
+		pout : out std_logic_vector(15 downto 0);
+		rw: in std_logic;
+		rw_stage : in std_logic_vector(2 downto 0);
+		--F0, F1, F2, F3, F4, F5, F6, F7: in std_logic_vector(15 downto 0);
+		--p0, p1, p2, p3, p4, p5, p6, p7: out std_logic_vector(15 downto 0);
 		action_in: in std_logic;
 		done:	out std_logic 	-- 0 for write action, 1 for read action
     );
@@ -67,7 +71,8 @@ architecture rtl of idct is
     signal hv_pr_state, hv_nx_state: state;
     signal g2p_pr_state, g2p_nx_state: state;
 
-   
+	signal F0, F1, F2, F3, F4, F5, F6, F7: std_logic_vector(15 downto 0);
+	signal p0, p1, p2, p3, p4, p5, p6, p7: std_logic_vector(15 downto 0);
     signal g0, g1, g2, g3, g4, g5, g6, g7: signed(31 downto 0);
 	
     signal v0, v1, v2, v3: std_logic_vector(15 downto 0);
@@ -108,7 +113,56 @@ begin
     --       completion of the IDCT logic
     --
 
-    action_control_process : process (clk, rst)
+    process (clk, rst)
+    begin
+        if (rst = '0') then
+			pout <= (others => '0');
+        elsif rising_edge(clk) then
+			if(rw='0')then
+				case rw_stage is
+				when "000" =>
+					pout <= p0;
+				when "001" =>
+					pout <= p1;
+				when "010" =>
+					pout <= p2;
+				when "011" =>
+					pout <= p3;
+				when "100" =>
+					pout <= p4;
+				when "101" =>
+					pout <= p5;
+				when "110" =>
+					pout <= p6;
+				when "111" =>
+					pout <= p7;
+				when others => null;
+				end case;
+			else
+				case rw_stage is
+				when "000" =>
+					F0 <= Fin;
+				when "001" =>		
+					F1 <= Fin;
+				when "010" =>
+					F2 <= Fin;
+				when "011" =>
+					F3 <= Fin;
+				when "100" =>
+					F4 <= Fin;
+				when "101" =>
+					F5 <= Fin;
+				when "110" =>
+					F6 <= Fin;
+				when "111" =>
+					F7 <= Fin;
+				when others => null;
+				end case;
+			end if;
+        end if;
+    end process;
+	
+	action_control_process : process (clk, rst)
     begin
         if (rst = '0') then
 			action <= '0';
@@ -124,7 +178,7 @@ begin
 				end if;
 			end if;
         end if;
-    end process;
+    end process action_control_process;
 
     ---------------------------------------------------------------------
     --  Controller (Finite State Machines) Begins Here
@@ -186,33 +240,33 @@ begin
         end case;
     end process;
 
-    FSM_2: process(rst, clk)
-    begin
-        if (rst = '0') then
-            g2p_pr_state <= init_g2p;
-        elsif (rising_edge(clk)) then
-            g2p_pr_state <= g2p_nx_state;
-        end if;
-    end process FSM_2;
+    -- FSM_2: process(rst, clk)
+    -- begin
+        -- if (rst = '0') then
+            -- g2p_pr_state <= init_g2p;
+        -- elsif (rising_edge(clk)) then
+            -- g2p_pr_state <= g2p_nx_state;
+        -- end if;
+    -- end process FSM_2;
 
-    process(g2p_pr_state, main_cntr, action_two, aux_cntr)
-    begin
-        case g2p_pr_state is	-- when previous state is 
-        when init_g2p =>		-- init_g2p
-            if (action_two = '1') then
-                g2p_nx_state <= calc_g2p;	-- if action2=1, change state to calc_g2p
-            else
-                g2p_nx_state <= init_g2p;
-            end if;
-        when calc_g2p =>		-- calc_g2p
-            if (aux_cntr > "0011") then		-- if aux_cntr >= 4	( g0~g6 computed )
-                g2p_nx_state <= init_g2p;	-- change state to init_g2p
-            else
-                g2p_nx_state <= calc_g2p;
-            end if;
-        when others => null;
-        end case;
-    end process;
+    -- process(g2p_pr_state, main_cntr, action_two, aux_cntr)
+    -- begin
+        -- case g2p_pr_state is	-- when previous state is 
+        -- when init_g2p =>		-- init_g2p
+            -- if (action_two = '1') then
+                -- g2p_nx_state <= calc_g2p;	-- if action2=1, change state to calc_g2p
+            -- else
+                -- g2p_nx_state <= init_g2p;
+            -- end if;
+        -- when calc_g2p =>		-- calc_g2p
+            -- if (aux_cntr > "0011") then		-- if aux_cntr >= 4	( g0~g6 computed )
+                -- g2p_nx_state <= init_g2p;	-- change state to init_g2p
+            -- else
+                -- g2p_nx_state <= calc_g2p;
+            -- end if;
+        -- when others => null;
+        -- end case;
+    -- end process;
 
     ---------------------------------------------------------------------
     --  Data Path Begins Here

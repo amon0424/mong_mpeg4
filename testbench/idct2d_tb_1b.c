@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-volatile int *F_array  = (int *) 0xb0100000;
+long *F_array  = (int *) 0xb0100000;
 volatile int *action  = (int *) 0xb0100080;
 
 short block[] = {-52,78,-193,164,-255,-207,157,171
@@ -19,31 +19,36 @@ main(int argc, char **argv)
 {
 	int idx, result, row;
 	short* blockBase;
+	unsigned long* lblockBase;
 	volatile int* fBase;
+	unsigned long* pBase;
+
 	memcpy((void *) F_array, (void *) block, sizeof(short)<<6);
 
 	*action=1;
 	while(*action);
 
 	blockBase = block;
-	fBase = F_array;
+	
+	lblockBase = (long*)block;
+	pBase = F_array;
 	for(row=0;row<8;row++)
 	{
-		result = *(fBase++);
-		*(blockBase++) = (short)(result >> 16);
-		*(blockBase++) = (short)(result);
+		*(lblockBase++) = *(pBase++);
+		*(lblockBase++) = *(pBase++);
+		*(lblockBase++) = *(pBase++);
+		*(lblockBase++) = *(pBase++);
 
-		result = *(fBase++);
-		*(blockBase++) = (short)(result >> 16);
-		*(blockBase++) = (short)(result);
+		/**(blockBase++) = pBase[0];
+		*(blockBase++) = pBase[1];
+		*(blockBase++) = pBase[2];
+		*(blockBase++) = pBase[3];
+		*(blockBase++) = pBase[4];
+		*(blockBase++) = pBase[5];
+		*(blockBase++) = pBase[6];
+		*(blockBase++) = pBase[7];
 
-		result = *(fBase++);
-		*(blockBase++) = (short)(result >> 16);
-		*(blockBase++) = (short)(result);
-
-		result = *(fBase++);
-		*(blockBase++) = (short)(result >> 16);
-		*(blockBase++) = (short)(result);
+		pBase+=8;*/
 	}
 
 	idx=0;

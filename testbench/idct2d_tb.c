@@ -20,7 +20,7 @@
 #include <stdlib.h>
 #include <time.h>    /* for generating random number seeds */
 
-#define NO_ECOS 1
+#define NO_ECOS 0
 
 /* HW accelerator interface */
 long *F_array           = (long *) 0xb0100000;
@@ -38,7 +38,7 @@ long dct_HU[] = {
 long dct_HL[] = {
     1004,  -851,   569, -200,
      851,   200, -1004,  569,
-     569,  1004,   200,  851,
+     569,  1004,   200, -851,
      200,   569,   851, 1004
 };
 
@@ -208,57 +208,98 @@ hw_idct_2d(short *block)
 int
 main(int arc, char *arv[])
 {
-    int block_no, idx;
+	int i, block_no, idx;
     int max_error, error, overall_max_error;
     short block[64];      /* buffer for IDCT test patterns */
-    short block_hw[64];   /* buffer for HW IDCT inputs     */
+    short last_block_hw[64], block_hw[64];   /* buffer for HW IDCT inputs     */
+	
+	unsigned int clk = clock();
 
-    //srand(clock());
+   
     printf("Start testing IDCT.\n");
+    overall_max_error = 0;
+	for(i=0; i<2; i++)
+	{
+		srand(clk);
+		//printf("rand: %d\n", rand());
 
-    /* generate test pattern */
-	printf("Source = [\n");
-    for (idx = 0; idx < 64; idx++)
-    {
-        block[idx] = (short) ((rand() % 510) - 255);
-		 printf(((idx+1)%8)? "%5d " : "%5d\n", block[idx]);
-    }
-	printf("]\n");
+		for (block_no = 0; block_no < 1024; block_no++)
+		{
+			/* generate test pattern */
+			for (idx = 0; idx < 64; idx++)
+			{
+				block[idx] = (short) ((rand() % 510) - 255);
+			}
 
-    /* compute forward dct transform on the test blocks */
-    dct_2d(block);
-#if NO_ECOS /* memcpy() has problems under eCos 1.0.8 */
-    memcpy((void *) block_hw, (void *) block, sizeof(block_hw));
-#else
-    for (idx = 0; idx < 64; idx++)
-    {
-        block_hw[idx] = block[idx];
-    }
-#endif
+			/* compute forward dct transform on the test blocks */
+			dct_2d(block);
+	#if NO_ECOS /* memcpy() has problems under eCos 1.0.8 */
+			memcpy((void *) block_hw, (void *) block, sizeof(block_hw));
+	#else
+			for (idx = 0; idx < 64; idx++)
+			{
+				block_hw[idx] = block[idx];
+			}
+	#endif
 
-#if 1
-    /* display one 8x8 block of DCT test coefficients */
-    printf("DCT Coefficients = [\n");
-    for (idx = 0; idx < 64; idx++)
-    {
-        printf(((idx+1)%8)? "%5d " : "%5d\n", block[idx]);
-    }
-    printf("]\n");
-#endif
+	#if 0
+			/* display one 8x8 block of DCT test coefficients */
+			printf("DCT Coefficients = [\n");
+			for (idx = 0; idx < 64; idx++)
+			{
+				printf(((idx+1)%8)? "%5d " : "%5d\n", block[idx]);
+			}
+			printf("]\n");
+	#endif
 
-    /* compute the C-Model idct output */
-    idct_2d(block);
+			/* compute the C-Model idct output */
+			idct_2d(block);
 
-    /* compute idct using the hardware logic */
-    hw_idct_2d(block_hw);
+			/* compute idct using the hardware logic */
+			hw_idct_2d(block_hw);
 
-	/* display one 8x8 block of DCT test coefficients */
-    printf("Result = [\n");
-    for (idx = 0; idx < 64; idx++)
-    {
-        printf(((idx+1)%8)? "%5d " : "%5d\n", block[idx]);
-    }
-    printf("]\n");
+			/* find peak error per pixel */
+			max_error = 0;
+			for (idx = 0; idx < 64; idx++)
+			{
+				error = abs(block_hw[idx] - block[idx]);
+				if (error > max_error) max_error = error;
+			}
+		
+			if(max_error > 0)
+			{
+				printf("Peak HW error @ block #%4d = %d\n", block_no, max_error);
+				
+				printf("SW Result = [\n");
+				for (idx = 0; idx < 64; idx++)
+				{
+					printf(((idx+1)%8)? "%5d " : "%5d\n", block[idx]);
+				}
+				printf("]\n");
+
+				printf("HW Result = [\n");
+				for (idx = 0; idx < 64; idx++)
+				{
+					printf(((idx+1)%8)? "%5d " : "%5d\n", block_hw[idx]);
+				}
+				printf("]\n");
+
+				//printf("Last HW Result = [\n");
+				//for (idx = 0; idx < 64; idx++)
+				//{
+				//	printf(((idx+1)%8)? "%5d " : "%5d\n", last_block_hw[idx]);
+				//}
+				//printf("]\n");
+			}
+			if (max_error > overall_max_error) overall_max_error = max_error;
+
+			for (idx = 0; idx < 64; idx++)
+			{
+				last_block_hw[idx] = block_hw[idx];
+			}
+		}
+	}
+    printf("\nOverall max HW IDCT pixel error = %d\n", overall_max_error);
 
     return 0;
 }

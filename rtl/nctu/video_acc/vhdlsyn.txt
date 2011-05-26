@@ -2,4 +2,4 @@ video_acc.vhd
 mcomp.vhd
 idct.vhd
 idct2d.vhd
-bram.vhd
+ramb16_s16.vhd
