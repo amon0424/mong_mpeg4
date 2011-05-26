@@ -433,7 +433,7 @@ begin
 			end if;
 			
 			-- data in
-			if (prev_state = ready and(ahbsi.hsel(ahbndx) and ahbsi.htrans(1) and ahbsi.hready and ahbsi.hwrite and (not ahbsi.haddr(7))) = '1') then
+			if (prev_state = ready and(wr_valid and (not addr_wr(7))) = '1') then
 				iram_di1 <= ahbsi.hwdata(31 downto 16);
 				iram_di2 <= ahbsi.hwdata(15 downto 0);
 			elsif(prev_state = stage1 and next_substate = write_p)then
