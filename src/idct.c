@@ -1,5 +1,5 @@
 #include <string.h>
-
+#include <stdio.h>
 #define USE_HW_IDCT_2D 1
 #define USE_HW_IDCT 1
 
@@ -11,72 +11,57 @@ volatile long *action   = (long *) 0xb0100080;
 void
 idct(short *block)
 {
-	//int idx, result, row;
-	//short* blockBase;
+	int row;
+	long tmp;
 	long* lblockBase;
-	//volatile long* fBase;
-	volatile long* pBase;
+	long* pBase;
+	long* fBase;
+	
 
-	//lblockBase = (long*)block;
-	//blockBase = block;
-	//fBase = F_array;
-	//for(row=0;row<8;row++)
-	//{
-	//	*(fBase++) = *(lblockBase++);
-	//	*(fBase++) = *(lblockBase++);
-	//	*(fBase++) = *(lblockBase++);
-	//	*(fBase++) = *(lblockBase++);
-	//}
-
-	int idx, result, row;
-	short* blockBase;
-	volatile long* fBase;
-
-	blockBase = block;
+	lblockBase = (long*)block;
 	fBase = F_array;
+
 	for(row=0;row<8;row++)
 	{
-		*(fBase++) = *((long *)blockBase);
-		*(fBase++) = *((long *)(blockBase+2));
-		*(fBase++) = *((long *)(blockBase+4));
-		*(fBase++) = *((long *)(blockBase+6));
-		blockBase += 8;
+		asm volatile( 
+			"ld [%3], %2; \
+			 st %2, [%4]; \
+			 ld [%3+4], %2; \
+			 st %2, [%4+4]; \
+			 ld [%3+8], %2; \
+			 st %2, [%4+8]; \
+			 ld [%3+12], %2; \
+			 st %2, [%4+12]; \
+			 add %3, 16, %0; \
+			 add %4, 16, %1;" 
+			: "=r" (lblockBase), "=r" (fBase), "=&r" (tmp)
+			: "0" (lblockBase), "1" (fBase)
+			);
 	}
-
+	
 	*action=1;
 	while(*action);
 
 	lblockBase = (long*)block;
 	pBase = F_array;
+
 	for(row=0;row<8;row++)
-	{
-		*(lblockBase++) = *(pBase++);
-		*(lblockBase++) = *(pBase++);
-		*(lblockBase++) = *(pBase++);
-		*(lblockBase++) = *(pBase++);
+	{	
+		asm volatile( 
+			"ld [%3], %2; \
+			 st %2, [%4]; \
+			 ld [%3+4], %2; \
+			 st %2, [%4+4]; \
+			 ld [%3+8], %2; \
+			 st %2, [%4+8]; \
+			 ld [%3+12], %2; \
+			 st %2, [%4+12]; \
+			 add %3, 16, %0; \
+			 add %4, 16, %1;" 
+			: "=r" (pBase), "=r" (lblockBase), "=&r" (tmp)
+			: "0" (pBase), "1" (lblockBase)
+			);
 	}
-
-	//blockBase = block;
-	//fBase = F_array;
-	//for(row=0;row<8;row++)
-	//{
-	//	result = *(fBase++);
-	//	*(blockBase++) = (short)(result >> 16);
-	//	*(blockBase++) = (short)(result);
-
-	//	result = *(fBase++);
-	//	*(blockBase++) = (short)(result >> 16);
-	//	*(blockBase++) = (short)(result);
-
-	//	result = *(fBase++);
-	//	*(blockBase++) = (short)(result >> 16);
-	//	*(blockBase++) = (short)(result);
-
-	//	result = *(fBase++);
-	//	*(blockBase++) = (short)(result >> 16);
-	//	*(blockBase++) = (short)(result);
-	//}
-
 }
 
 
