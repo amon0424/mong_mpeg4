@@ -11,7 +11,7 @@ volatile long *action   = (long *) 0xb0100080;
 void
 idct(short *block)
 {
-	int row;
+		int row;
 	long tmp;
 	long* lblockBase;
 	long* pBase;
@@ -21,23 +21,14 @@ idct(short *block)
 	lblockBase = (long*)block;
 	fBase = F_array;
 
-	for(row=0;row<8;row++)
-	{
-		asm volatile( 
-			"ld [%3], %2; \
-			 st %2, [%4]; \
-			 ld [%3+4], %2; \
-			 st %2, [%4+4]; \
-			 ld [%3+8], %2; \
-			 st %2, [%4+8]; \
-			 ld [%3+12], %2; \
-			 st %2, [%4+12]; \
-			 add %3, 16, %0; \
-			 add %4, 16, %1;" 
-			: "=r" (lblockBase), "=r" (fBase), "=&r" (tmp)
-			: "0" (lblockBase), "1" (fBase)
-			);
-	}
+	memcpy(fBase, lblockBase, 16);
+	memcpy(fBase+4, lblockBase+4, 16);
+	memcpy(fBase+8, lblockBase+8, 16);
+	memcpy(fBase+12, lblockBase+12, 16);
+	memcpy(fBase+16, lblockBase+16, 16);
+	memcpy(fBase+20, lblockBase+20, 16);
+	memcpy(fBase+24, lblockBase+24, 16);
+	memcpy(fBase+28, lblockBase+28, 16);
 	
 	*action=1;
 	while(*action);
@@ -47,6 +38,7 @@ idct(short *block)
 
 	for(row=0;row<8;row++)
 	{	
+		//memcpy(lblockBase, pBase, 16); lblockBase+=4; pBase+=4;
 		asm volatile( 
 			"ld [%3], %2; \
 			 st %2, [%4]; \
