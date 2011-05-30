@@ -8,6 +8,10 @@ long *F_array            = (long *) 0xb0100000;
 long *p_array            = (long *) 0xb0100000;
 volatile long *action   = (long *) 0xb0100080;
 
+long *F_array_2            = (long *) 0xb0200000;
+long *p_array_2            = (long *) 0xb0200000;
+volatile long *action_2   = (long *) 0xb0200080;
+
 void
 idct(short *block)
 {
@@ -44,6 +48,72 @@ idct(short *block)
 	}
 }
 
+void
+idct_dual(short *block1, short *block2)
+{
+	int row;
+	long* lblockBase;
+	long* pBase;
+	long* fBase;
+	
+
+	// copy block 1
+	lblockBase = (long*)block1;
+	fBase = F_array;
+	memcpy(fBase, lblockBase, 16);
+	memcpy(fBase+4, lblockBase+4, 16);
+	memcpy(fBase+8, lblockBase+8, 16);
+	memcpy(fBase+12, lblockBase+12, 16);
+	memcpy(fBase+16, lblockBase+16, 16);
+	memcpy(fBase+20, lblockBase+20, 16);
+	memcpy(fBase+24, lblockBase+24, 16);
+	memcpy(fBase+28, lblockBase+28, 16);
+	
+	// action block1
+	*action=1;
+
+	// copy block 2
+	lblockBase = (long*)block2;
+	fBase = F_array_2;
+	memcpy(fBase, lblockBase, 16);
+	memcpy(fBase+4, lblockBase+4, 16);
+	memcpy(fBase+8, lblockBase+8, 16);
+	memcpy(fBase+12, lblockBase+12, 16);
+	memcpy(fBase+16, lblockBase+16, 16);
+	memcpy(fBase+20, lblockBase+20, 16);
+	memcpy(fBase+24, lblockBase+24, 16);
+	memcpy(fBase+28, lblockBase+28, 16);
+
+	// action block2
+	*action_2=1;
+
+	// get block1
+	while(*action);
+
+	lblockBase = (long*)block1;
+	pBase = F_array;
+	for(row=0;row<8;row++, lblockBase += 4, pBase +=4)
+	{	
+		lblockBase[0]=pBase[0];
+		lblockBase[1]=pBase[1];
+		lblockBase[2]=pBase[2];
+		lblockBase[3]=pBase[3];
+	}
+
+	// get block2
+	while(*action_2);
+
+	// get block2
+	lblockBase = (long*)block2;
+	pBase = F_array_2;
+	for(row=0;row<8;row++, lblockBase += 4, pBase +=4)
+	{	
+		lblockBase[0]=pBase[0];
+		lblockBase[1]=pBase[1];
+		lblockBase[2]=pBase[2];
+		lblockBase[3]=pBase[3];
+	}
+}
 
 #elif USE_HW_IDCT  /* ========== HW IDCT ============ */
 

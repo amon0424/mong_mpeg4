@@ -181,7 +181,7 @@ decoder_mbintra(DECODER * dec,
     uint32  stride = dec->edged_width;
     uint32  stride2 = stride / 2;
     uint32  next_block = stride * 8;
-    uint32  i;
+    uint32  i,j;
     uint32  iQuant = pMB->quant;
     uint8  *pY_Cur, *pU_Cur, *pV_Cur;
 
@@ -246,7 +246,7 @@ decoder_mbintra(DECODER * dec,
         stop_iquant_timer();
 
         start_timer();
-        idct(&data[i * 64]);
+		idct(&data[i * 64]);
         stop_idct_timer();
     }
 
@@ -258,6 +258,30 @@ decoder_mbintra(DECODER * dec,
     transfer_16to8copy(pU_Cur, &data[4 * 64], stride2);
     transfer_16to8copy(pV_Cur, &data[5 * 64], stride2);
     stop_transfer_timer();
+
+#if 0
+	printf("(%d,%d)\n",x_pos,y_pos);
+	printf("pY_Cur = [\n");
+	for (j = 0; j < 8; j++)
+        for (i = 0; i < 8; i++)
+			printf(((i+1)%8)? "%5d " : "%5d\n", pY_Cur[j * stride + i]);
+	printf("\n");
+	printf("pY_Cur + 8 = [\n");
+	for (j = 0; j < 8; j++)
+        for (i = 0; i < 8; i++)
+			printf(((i+1)%8)? "%5d " : "%5d\n", (pY_Cur+8)[j * stride + i]);
+	printf("\n");
+	printf("pY_Cur+ next_block = [\n");
+	for (j = 0; j < 8; j++)
+        for (i = 0; i < 8; i++)
+			printf(((i+1)%8)? "%5d " : "%5d\n", (pY_Cur+ next_block)[j * stride + i]);
+	printf("\n");
+	printf("pY_Cur+ next_block +8= [\n");
+	for (j = 0; j < 8; j++)
+        for (i = 0; i < 8; i++)
+			printf(((i+1)%8)? "%5d " : "%5d\n", (pY_Cur+ next_block+8)[j * stride + i]);
+	printf("\n");
+#endif
 }
 
 #define SIGN(X) (((X)>0)?1:-1)
@@ -335,6 +359,9 @@ decoder_mbinter(DECODER * dec,
                           uv_dx, uv_dy, stride2, rounding);
     stop_comp_timer();
 
+	int16* blocks[2];
+	int blockIdx = 0;
+
     for (i = 0; i < 6; i++)
     {
         if (cbp & (1 << (5 - i)))       // coded
@@ -349,11 +376,24 @@ decoder_mbinter(DECODER * dec,
             dequant_inter(&data[i * 64], &block[i * 64], iQuant);
             stop_iquant_timer();
 
-            start_timer();
-            idct(&data[i * 64]);
-            stop_idct_timer();
+			blocks[blockIdx++] = &data[i * 64];
+
+			if(blockIdx==2)
+			{
+				start_timer();
+				idct_dual(blocks[0], blocks[1]);
+				stop_idct_timer();
+				blockIdx=0;
+			}
         }
     }
+	if(blockIdx > 1)
+	{
+		start_timer();
+		idct(blocks[0]);
+		stop_idct_timer();
+		blockIdx=0;
+	}
 
     start_timer();
     if (cbp & 32)

@@ -633,17 +633,23 @@ begin
 ---  CS, NCTU, HW/SW Codesign -----------------------------------------
 -----------------------------------------------------------------------
 
-    my_mcomp : mcomp generic map (ahbndx => 6,
-                                  ahbaddr => 16#B00#,
-                                  verid => 1,
-                                  irq_no => 14)
-    port map (rstn, clkm, ahbsi, ahbso(6));
+    -- my_mcomp : mcomp generic map (ahbndx => 6,
+                                  -- ahbaddr => 16#B00#,
+                                  -- verid => 1,
+                                  -- irq_no => 14)
+    -- port map (rstn, clkm, ahbsi, ahbso(6));
 
     my_idct2d : idct2d generic map (ahbndx => 7,
                                   ahbaddr => 16#B01#,
                                   verid => 1,
                                   irq_no => 15)
     port map (rstn, clkm, ahbsi, ahbso(7));
+	
+	 my_idct2d_2 : idct2d generic map (ahbndx => 6,
+                                  ahbaddr => 16#B02#,
+                                  verid => 1,
+                                  irq_no => 14)
+    port map (rstn, clkm, ahbsi, ahbso(6));
 
 -----------------------------------------------------------------------
 ---  Multi-core CAN ---------------------------------------------------
