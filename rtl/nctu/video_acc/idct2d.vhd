@@ -421,7 +421,7 @@ begin
 	
 	-- for interface block ram
 	iram_addr1 <= 	addr_wr(6 downto 1) when prev_state = ready and wr_valid='1' else 	--ahb write
-					ahbsi.haddr(6 downto 1) when  prev_state = ready else				--ahb read
+					ahbsi.haddr(6 downto 1) when  prev_state = ready and ahbsi.hsel(ahbndx) = '1' else				--ahb read
 					row_index(5 downto 0) when prev_state = stage0 else					--read_f for stage0
 					col_index(5 downto 0);												--write_p for stage1
 
