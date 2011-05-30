@@ -190,7 +190,7 @@ decoder_mbintra(DECODER * dec,
     pV_Cur = dec->cur.v + (y_pos << 3) * stride2 + (x_pos << 3);
 
     memset(block, 0, 6 * 64 * sizeof(int16));
-
+	int16* tmpBlock = NULL;
     for (i = 0; i < 6; i++)
     {
         uint32  iDcScaler = get_dc_scaler(iQuant, (i < 4) ? 1 : 0);
@@ -245,9 +245,21 @@ decoder_mbintra(DECODER * dec,
         dequant_intra(&data[i * 64], &block[i * 64], iQuant, iDcScaler);
         stop_iquant_timer();
 
-        start_timer();
+        /*start_timer();
 		idct(&data[i * 64]);
-        stop_idct_timer();
+        stop_idct_timer();*/
+		
+		if(tmpBlock!=NULL)
+		{
+			start_timer();
+			idct_dual(tmpBlock, &data[i * 64]);
+			stop_idct_timer();
+			tmpBlock = NULL;
+		}
+		else
+		{
+			tmpBlock = &data[i * 64];
+		}
     }
 
     start_timer();
@@ -359,8 +371,7 @@ decoder_mbinter(DECODER * dec,
                           uv_dx, uv_dy, stride2, rounding);
     stop_comp_timer();
 
-	int16* blocks[2];
-	int blockIdx = 0;
+	int16* tmpBlock = NULL;
 
     for (i = 0; i < 6; i++)
     {
@@ -376,23 +387,25 @@ decoder_mbinter(DECODER * dec,
             dequant_inter(&data[i * 64], &block[i * 64], iQuant);
             stop_iquant_timer();
 
-			blocks[blockIdx++] = &data[i * 64];
-
-			if(blockIdx==2)
+			//blocks[blockIdx++] = &data[i * 64];
+			if(tmpBlock!=NULL)
 			{
 				start_timer();
-				idct_dual(blocks[0], blocks[1]);
+				idct_dual(tmpBlock, &data[i * 64]);
 				stop_idct_timer();
-				blockIdx=0;
+				tmpBlock = NULL;
+			}
+			else
+			{
+				tmpBlock = &data[i * 64];
 			}
         }
     }
-	if(blockIdx > 1)
+	if(tmpBlock!=NULL)
 	{
 		start_timer();
-		idct(blocks[0]);
+		idct(tmpBlock);
 		stop_idct_timer();
-		blockIdx=0;
 	}
 
     start_timer();
