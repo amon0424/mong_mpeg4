@@ -84,6 +84,8 @@ type reg_type is record
   data    : datavec;
   cnt     : integer range 0 to dbuf-1;
   readCountInRow : std_logic_vector(3 downto 0);
+  stride : std_logic_vector(31 downto 0);
+  width : std_logic_vector(3 downto 0);			-- 0~9
 end record;
 
 signal r, rin : reg_type;
@@ -93,12 +95,12 @@ signal dmao : ahb_dma_out_type;
 
 signal src_addr : std_logic_vector(31 downto 0);	-- 000
 signal dst_addr : std_logic_vector(31 downto 0);	-- 001
-signal stride  : std_logic_vector(31 downto 0);		-- 010
+--signal stride  : std_logic_vector(31 downto 0);		-- 010
 signal rfactor  : std_logic_vector(31 downto 0);	-- 011
 signal action : std_logic;							-- 100
 
 --signal readCountInRow : std_logic_vector(3 downto 0);	-- 0~9
-signal width : std_logic_vector(3 downto 0);			-- 0~9
+--signal width : std_logic_vector(3 downto 0);			-- 0~9
 
 begin
 	-- ahbso.hresp   <= "00"; 
@@ -195,7 +197,6 @@ begin
 		variable newaddr : std_logic_vector(9 downto 0);
 		variable oldsize : std_logic_vector( 1 downto 0);
 		variable ainc    : std_logic_vector( 3 downto 0);
-		variable vReadCountInRow : std_logic_vector(3 downto 0);
 	begin
 		v := r; 
 		regd := (others => '0'); 
@@ -216,11 +217,12 @@ begin
 		
 		newlen := r.len - 1;
 
-		if (r.cnt < dbuf-1) or (r.len(9 downto 2) = "11111111") then 
+		if ((r.cnt < dbuf-1) or (r.len(9 downto 2) = "11111111"))then 
 			burst := '1'; 
 		else 
 			burst := '0'; 
 		end if;
+		
 		start := r.enable;
 		
 		if dmao.active = '1' then
@@ -237,10 +239,10 @@ begin
 						v.cnt := r.cnt + 1; 
 					end if;
 					
-					if r.readCountInRow = width then 
-						v.readCountInRow := (others=>'0');
-					else
+					if r.readCountInRow < r.width then 
 						v.readCountInRow := r.readCountInRow + 4;
+					else
+						v.readCountInRow := "0100";
 					end if;
 				end if;
 			else
@@ -271,19 +273,27 @@ begin
 
 		ainc := decode(oldsize);
 
-		if r.readCountInRow < width then
+		--if r.readCountInRow + 4 < r.width then
 			newaddr := oldaddr + ainc(3 downto 0);
-		else
-			newaddr := oldaddr + stride(9 downto 0) - r.readCountInRow + 4;
-		end if;
+		--else
+			-- newaddr := oldaddr + r.stride(9 downto 0) - r.readCountInRow;
+		--end if;
 
 		if (dmao.active and dmao.ready) = '1' then
 			if r.write = '0' then 
-				v.srcaddr(9 downto 0) := newaddr;
+				
+				if r.readCountInRow + 4 > r.width  then
+					v.inhibit := '1';
+					v.srcaddr := v.srcaddr + r.stride(9 downto 0) - r.readCountInRow;
+				else
+					v.srcaddr(9 downto 0) := newaddr;
+				end if;
 			else 
 				v.dstaddr(9 downto 0) := newaddr; 
 			end if;
 		end if;
+		
+		
 
 		-- read DMA registers
 
@@ -308,9 +318,9 @@ begin
 				v.dstinc := ahbsi.hwdata(19 downto 18);
 				v.enable := ahbsi.hwdata(20);
 			when "011" => -- 0x0C
-				stride <= ahbsi.hwdata;
+				v.stride := ahbsi.hwdata;
 			when "100" => -- 0x10
-				width <= ahbsi.hwdata(3 downto 0);
+				v.width := ahbsi.hwdata(3 downto 0);
 			when others => null;
 			end case;
 		end if;
@@ -321,8 +331,8 @@ begin
 			v.write := '0';
 			v.cnt  := 0;
 			v.readCountInRow := (others=>'0');
-			stride <= (others=>'0');
-			width <= (others=>'0');
+			v.stride := (others=>'0');
+			v.width := (others=>'0');
 		end if;
 
 		rin <= v;

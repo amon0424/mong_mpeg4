@@ -659,7 +659,7 @@ begin
 				hindex => CFG_NCPU+CFG_AHB_UART+CFG_GRETH+CFG_AHB_JTAG+
                        CFG_SVGA_ENABLE+CFG_SPW_NUM*CFG_SPW_EN+
                        CFG_GRUSB_DCL+CFG_GRUSBDC+CFG_ATA,
-				dbuf => 32)
+				dbuf => 8)
 	port map (rstn, clkm, ahbsi, ahbso(5), ahbmi, 
 		ahbmo(CFG_NCPU+CFG_AHB_UART+CFG_GRETH+CFG_AHB_JTAG+
 			   CFG_SVGA_ENABLE+CFG_SPW_NUM*CFG_SPW_EN+

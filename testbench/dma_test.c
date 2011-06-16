@@ -23,7 +23,7 @@ main(int argc, char **argv)
 	*dma_dstaddr = mcomp_data;
 	*dma_stride = stride;
 	*dma_width = 9;  
-	*dma_other = (1 << 20) | (3 << 19) | (3 << 17) | ( 2 );
+	*dma_other = (1 << 20) | (3 << 18) | (3 << 16) | ( 2 );
 	
 
 	while(block2[0] == 0);
