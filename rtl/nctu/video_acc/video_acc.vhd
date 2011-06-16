@@ -21,7 +21,27 @@ use grlib.amba.all;
 use grlib.devices.all;
 
 package video_acc is
-
+	component BRAM
+		generic (
+			size : integer := 64;
+			addrlen : integer := 32;
+			datalen : integer := 32
+		);
+		port(
+			CLK1: in std_logic;
+			WE1: in std_logic;
+			Addr1: in std_logic_vector(addrlen-1 downto 0);
+			Data_In1: in std_logic_vector(datalen-1 downto 0);
+			Data_Out1: out std_logic_vector(datalen-1 downto 0);
+			
+			CLK2: in std_logic;
+			WE2: in std_logic;
+			Addr2: in std_logic_vector(addrlen-1 downto 0);
+			Data_In2: in std_logic_vector(datalen-1 downto 0);
+			Data_Out2: out std_logic_vector(datalen-1 downto 0)
+		);
+	end component;
+	
     component mcomp
         generic (
             ahbndx  : integer := 0;
@@ -72,4 +92,29 @@ package video_acc is
             ahbso   : out ahb_slv_out_type
         );
     end component;
+	
+	component dmatest is
+	  generic (
+		ahbndx  : integer := 0;
+		ahbaddr : integer := 0;
+		addrmsk : integer := 16#fff#;
+		verid   : integer := 0;
+		irq_no  : integer := 0;
+		
+		-- for dma
+		hindex : integer := 0;
+		dbuf   : integer := 4
+	  );
+
+	  port (
+		rst     : in  std_ulogic;
+		clk     : in  std_ulogic;
+		ahbsi   : in  ahb_slv_in_type;
+		ahbso   : out ahb_slv_out_type;
+		
+		-- for dma
+		ahbmi : in  ahb_mst_in_type;
+		ahbmo : out ahb_mst_out_type 
+	  );
+	end component;
 end;

@@ -24,6 +24,9 @@ use grlib.devices.all;
 library techmap;
 use techmap.gencomp.all;
 
+library nctu;
+use nctu.video_acc.all;
+
 entity mcomp is
   generic (
     ahbndx  : integer := 0;
@@ -54,18 +57,20 @@ signal reg_b : std_logic_vector(31 downto 0);  -- pixel value 2
 signal reg_c : std_logic_vector(31 downto 0);  -- pixel value 3
 signal reg_d : std_logic_vector(31 downto 0);  -- pixel value 4
 signal reg_r : std_logic_vector(31 downto 0);  -- rounding value
-signal valid : std_logic; -- is the logic selected by a master
-signal temp_addr : std_logic_vector(31 downto 0);
+signal wr_valid : std_logic; -- is the logic selected by a master
+signal addr_wr : std_logic_vector(31 downto 0);
 
--- pragma translate_off
--- The following signals are used for GHDL simulation, you don't
--- need these for ModleSim simulation
-signal hsel    : std_logic_vector(0 to NAHBSLV-1); -- slave select
-signal haddr   : std_logic_vector(31 downto 0);    -- address bus (byte)
-signal hwrite  : std_ulogic;                       -- read/write
-signal hwdata  : std_logic_vector(31 downto 0);    -- write data bus
-signal hiready : std_ulogic;                       -- transfer done
--- pragma translate_on
+-----------------------------------------------------------------
+-- BRAM
+-----------------------------------------------------------------
+signal ram_addr1: std_logic_vector(4 downto 0);
+signal ram_addr2: std_logic_vector(4 downto 0);
+signal ram_we1	: std_logic;
+signal ram_we2	: std_logic;
+signal ram_di1 : std_logic_vector(31 downto 0);
+signal ram_di2 : std_logic_vector(31 downto 0);
+signal ram_do1 : std_logic_vector(31 downto 0);
+signal ram_do2 : std_logic_vector(31 downto 0);
 
 begin
   ahbso.hresp   <= "00"; 
@@ -74,16 +79,24 @@ begin
   ahbso.hcache  <= '0';
   ahbso.hconfig <= hconfig;
   ahbso.hindex  <= ahbndx;
-
--- pragma translate_off
--- The following signals are used for GHDL simulation, you don't
--- need these for ModleSim simulation
-  hsel    <= ahbsi.hsel;
-  haddr   <= ahbsi.haddr;
-  hwrite  <= ahbsi.hwrite;
-  hwdata  <= ahbsi.hwdata;
-  hiready <= ahbsi.hready;
--- pragma translate_on
+  
+	ram : BRAM generic map(
+		size => 27,
+		addrlen  => 5,
+		datalen => 32
+	)
+	port map (
+		CLK1		=> clk,
+		CLK2		=> clk,
+		Addr1	=> ram_addr1,
+		Addr2	=> ram_addr2,
+		WE1		=> ram_we1,
+		WE2		=> ram_we2,
+		Data_In1	=> ram_di1,
+		Data_In2	=> ram_di2,
+		Data_Out1	=> ram_do1,
+		Data_Out2	=> ram_do2
+	);
 
   ready_ctrl : process (clk, rst)
   begin
@@ -100,18 +113,26 @@ begin
   addr_fetch : process (clk, rst)
   begin
       if rst = '0' then
-          temp_addr <= (others => '0');
-          valid <= '0';
+          addr_wr <= (others => '0');
+          wr_valid <= '0';
       elsif rising_edge(clk) then
           if (ahbsi.hsel(ahbndx) and ahbsi.htrans(1) and
               ahbsi.hready and ahbsi.hwrite) = '1' then
-              temp_addr <= ahbsi.haddr;
-              valid <= '1';
+              addr_wr <= ahbsi.haddr;
+              wr_valid <= '1';
           else
-              valid <= '0';
+              wr_valid <= '0';
           end if;
       end if;
   end process;
+  
+  ram_addr1 <= addr_wr(6 downto 2) when (wr_valid = '1' and addr_wr(7) = '0') else (others=>'0');
+  ram_we1 <= '1' when (wr_valid = '1' and addr_wr(7) = '0') else '0';
+  ram_di1 <= ahbsi.hwdata;
+  
+  ram_addr2 <= (others => '0');
+  ram_we2 <= '0';
+  ram_di2 <= (others => '0');
 
   write_process : process (clk, rst)
   begin
@@ -122,17 +143,10 @@ begin
           reg_d <= (others => '0');
           reg_r <= (others => '0');
       elsif rising_edge(clk) then
-          if valid = '1' then
-              if    temp_addr(4 downto 2) = "000" then
+          if wr_valid = '1' then
+              if addr_wr(4 downto 2) = "000" then
                   reg_a <= ahbsi.hwdata;
-              elsif temp_addr(4 downto 2) = "001" then
-                  reg_b <= ahbsi.hwdata;
-              elsif temp_addr(4 downto 2) = "010" then
-                  reg_c <= ahbsi.hwdata;
-              elsif temp_addr(4 downto 2) = "011" then
-                  reg_d <= ahbsi.hwdata;
-              elsif temp_addr(4 downto 2) = "100" then
-                  reg_r <= ahbsi.hwdata;
+              
               end if;
           end if;
       end if;

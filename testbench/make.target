@@ -6,5 +6,6 @@
 #	idct2d_tb
 #	idct2d_tb_1b
 #	dual_idct2d_tb
+#	dma_test
 # Modify the following line to change testbench make target
-TARGET=dual_idct2d_tb
+TARGET=dma_test
