@@ -4,3 +4,4 @@ idct.vhd
 idct2d.vhd
 bram.vhd
 dmatest.vhd
+mcomp_mst.vhd

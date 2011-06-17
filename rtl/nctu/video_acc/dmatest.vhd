@@ -69,7 +69,7 @@ constant hconfig : ahb_config_type := (
 
 type dma_state_type is (readc, writec);
 subtype word32 is std_logic_vector(31 downto 0);
-type datavec is array (0 to dbuf-1) of word32;
+type datavec is array (0 to dbuf-1+2) of word32;
 type reg_type is record
   srcaddr : std_logic_vector(31 downto 0);
   srcinc  : std_logic_vector(1 downto 0);
@@ -82,10 +82,12 @@ type reg_type is record
   status  : std_logic_vector(1 downto 0);
   dstate  : dma_state_type;
   data    : datavec;
-  cnt     : integer range 0 to dbuf-1;
+  cnt     : integer range 0 to dbuf-1+2; --additional one for r, one for action
   readCountInRow : std_logic_vector(3 downto 0);
-  stride : std_logic_vector(31 downto 0);
-  width : std_logic_vector(3 downto 0);			-- 0~9
+  src_stride : std_logic_vector(31 downto 0);
+  dst_stride : std_logic_vector(31 downto 0);
+  src_width : std_logic_vector(3 downto 0);			-- 0~9
+  dst_width : std_logic_vector(3 downto 0);			-- 0~9
 end record;
 
 signal r, rin : reg_type;
@@ -217,7 +219,9 @@ begin
 		
 		newlen := r.len - 1;
 
-		if ((r.cnt < dbuf-1) or (r.len(9 downto 2) = "11111111"))then 
+		if ((r.cnt < dbuf-1 and r.write = '0')
+			or (r.cnt < dbuf-1+2 and r.write = '1')
+			or (r.len(9 downto 2) = "11111111"))then 
 			burst := '1'; 
 		else 
 			burst := '0'; 
@@ -239,18 +243,18 @@ begin
 						v.cnt := r.cnt + 1; 
 					end if;
 					
-					if r.readCountInRow < r.width then 
+					if r.readCountInRow < r.src_width and not (r.cnt = dbuf-1) then 
 						v.readCountInRow := r.readCountInRow + 4;
 					else
 						v.readCountInRow := "0100";
 					end if;
 				end if;
 			else
-				if r.cnt = dbuf-1 then 
+				if r.cnt = dbuf-1+2 then 
 					start := '0'; 
 				end if;
 				if dmao.ready = '1' then
-					if r.cnt = dbuf-1 then 
+					if r.cnt = dbuf-1+2 then 
 						v.cnt := 0;
 						v.write := '0'; 
 						v.len := newlen; 
@@ -258,6 +262,12 @@ begin
 						irq := start;
 					else 
 						v.cnt := r.cnt + 1; 
+					end if;
+					
+					if r.readCountInRow < r.dst_width and not (r.cnt = dbuf-1) then 
+						v.readCountInRow := r.readCountInRow + 4;
+					else
+						v.readCountInRow := "0100";
 					end if;
 				end if;
 			end if;
@@ -281,46 +291,50 @@ begin
 
 		if (dmao.active and dmao.ready) = '1' then
 			if r.write = '0' then 
-				
-				if r.readCountInRow + 4 > r.width  then
+				if not (r.src_stride = (31 downto 4 => '0') & r.src_width) and r.readCountInRow + 4 > r.src_width then
 					v.inhibit := '1';
-					v.srcaddr := v.srcaddr + r.stride(9 downto 0) - r.readCountInRow;
+					v.srcaddr := v.srcaddr + r.src_stride(9 downto 0) - r.readCountInRow;
 				else
 					v.srcaddr(9 downto 0) := newaddr;
 				end if;
-			else 
+			else
+				if not (r.dst_stride = (31 downto 4 => '0') & r.dst_width) and r.readCountInRow + 4 > r.dst_width then
+					v.inhibit := '1';
+					v.dstaddr := v.dstaddr + r.dst_stride(9 downto 0) - r.readCountInRow;
+				else
+					v.dstaddr(9 downto 0) := newaddr;
+				end if;
 				v.dstaddr(9 downto 0) := newaddr; 
 			end if;
 		end if;
 		
 		
 
-		-- read DMA registers
-
-		case ahbsi.haddr(3 downto 2) is
-		when "00" => regd := r.srcaddr;
-		when "01" => regd := r.dstaddr;
-		when "10" => regd(20 downto 0) := r.enable & r.srcinc & r.dstinc & r.len;
-		when others => null;
-		end case;
+		
 
 		-- write DMA registers
 		--if (ahbsi.hsel(ahbndx) and ahbsi.henable and ahbsi.hwrite) = '1' then
 		if (ahbsi.hsel(ahbndx) and ahbsi.hwrite) = '1' then
-			case ahbsi.haddr(4 downto 2) is
-			when "000" => -- 0x00
+			case ahbsi.haddr(5 downto 2) is
+			when "0000" => -- 0x00
 				v.srcaddr := ahbsi.hwdata;
-			when "001" => -- 0x04
+			when "0001" => -- 0x04
 				v.dstaddr := ahbsi.hwdata;
-			when "010" => -- 0x08
+			when "0010" => -- 0x08
 				v.len := ahbsi.hwdata(15 downto 0);
 				v.srcinc := ahbsi.hwdata(17 downto 16);
 				v.dstinc := ahbsi.hwdata(19 downto 18);
 				v.enable := ahbsi.hwdata(20);
-			when "011" => -- 0x0C
-				v.stride := ahbsi.hwdata;
-			when "100" => -- 0x10
-				v.width := ahbsi.hwdata(3 downto 0);
+			when "0011" => -- 0x0C
+				v.src_stride := ahbsi.hwdata;
+			when "0100" => -- 0x10
+				v.src_width := ahbsi.hwdata(3 downto 0);
+			when "0101" => -- 0x14
+				v.dst_stride := ahbsi.hwdata;
+			when "0110" => -- 0x18
+				v.dst_width := ahbsi.hwdata(3 downto 0);
+			when "0111" => -- 0x1C
+				v.data(dbuf-1+1) := ahbsi.hwdata;	-- r factor
 			when others => null;
 			end case;
 		end if;
@@ -331,12 +345,15 @@ begin
 			v.write := '0';
 			v.cnt  := 0;
 			v.readCountInRow := (others=>'0');
-			v.stride := (others=>'0');
-			v.width := (others=>'0');
+			v.src_stride := (others=>'0');
+			v.src_width := (others=>'0');
+			v.dst_stride := (others=>'0');
+			v.dst_width := (others=>'0');
+			v.data(dbuf-1+2) := (31 downto 1 => '0') & '1';
 		end if;
 
 		rin <= v;
-		ahbso.hrdata  <= regd;
+		
 		dmai.address <= address;
 		dmai.wdata   <= r.data(r.cnt);
 		dmai.start   <= start and not v.inhibit;
@@ -346,6 +363,25 @@ begin
 		ahbso.hirq    <= (others =>'0');
 		ahbso.hindex  <= ahbndx;
 		ahbso.hconfig <= hconfig;
+	end process;
+	
+	ahb_read : process(clk, rst)
+	begin 
+		if rst = '0' then
+			ahbso.hrdata  <= (others => '0');
+		elsif rising_edge(clk) then 
+			-- read DMA registers
+			case ahbsi.haddr(3 downto 2) is
+			when "00" => 
+				ahbso.hrdata  <= r.srcaddr;
+			when "01" => 
+				ahbso.hrdata  <= r.dstaddr;
+			when "10" => 
+				ahbso.hrdata <= (31 downto 21 => '0') & r.enable & r.srcinc & r.dstinc & r.len;
+			when others => 
+				ahbso.hrdata  <= (others => '0');
+			end case;
+		end if; 
 	end process;
 
 	regs : process(clk)

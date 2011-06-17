@@ -19,6 +19,10 @@ use ieee.std_logic_1164.all;
 library grlib;
 use grlib.amba.all;
 use grlib.devices.all;
+use grlib.stdlib.all;
+
+library gaisler;
+use gaisler.misc.all;
 
 package video_acc is
 	component BRAM
@@ -92,6 +96,26 @@ package video_acc is
             ahbso   : out ahb_slv_out_type
         );
     end component;
+	
+	component ahbmst is
+	generic (
+		hindex	: integer := 0;
+		hirq		: integer := 0;
+		venid	 : integer := VENDOR_GAISLER;
+		devid	 : integer := 0;
+		version : integer := 0;
+		chprot	: integer := 3;
+		incaddr : integer := 0
+	);
+	 port (
+		rst	: in	std_ulogic;
+		clk	: in	std_ulogic;
+		dmai : in ahb_dma_in_type;
+		dmao : out ahb_dma_out_type;
+		ahbi : in	ahb_mst_in_type;
+		ahbo : out ahb_mst_out_type 
+		);
+	end component;
 	
 	component dmatest is
 	  generic (

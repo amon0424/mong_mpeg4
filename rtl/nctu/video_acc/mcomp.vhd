@@ -126,9 +126,12 @@ begin
       end if;
   end process;
   
-  ram_addr1 <= addr_wr(6 downto 2) when (wr_valid = '1' and addr_wr(7) = '0') else (others=>'0');
-  ram_we1 <= '1' when (wr_valid = '1' and addr_wr(7) = '0') else '0';
+  ram_addr1 <= addr_wr(6 downto 2) when (wr_valid = '1' and addr_wr(7) = '0') else 
+			ahbsi.haddr(6 downto 2) + ahbsi.haddr(6 downto 3) when ahbsi.haddr(6 downto 2) < "10010" else
+			(others => '0');
+  ram_we1 <= '1' when (wr_valid = '1' and addr_wr(6 downto 2) < "11011") else '0';
   ram_di1 <= ahbsi.hwdata;
+  ahbso.hrdata <= ram_do1;
   
   ram_addr2 <= (others => '0');
   ram_we2 <= '0';
@@ -144,45 +147,34 @@ begin
           reg_r <= (others => '0');
       elsif rising_edge(clk) then
           if wr_valid = '1' then
-              if addr_wr(4 downto 2) = "000" then
-                  reg_a <= ahbsi.hwdata;
-              
+              if addr_wr(6 downto 2) = "11011" then -- 27
+                  reg_r <= ahbsi.hwdata;
               end if;
           end if;
       end if;
   end process;
 
-  read_process : process (clk, rst)
-  variable shift : std_logic_vector(31 downto 0);
-  begin
-      if rst = '0' then
-          ahbso.hrdata <= (others => '0');
-      elsif rising_edge(clk) then
-          if (ahbsi.hsel(ahbndx) and ahbsi.hready) = '1' then
-              if    ahbsi.haddr(4 downto 2) = "000" then
-                  ahbso.hrdata <= reg_a;
-              elsif ahbsi.haddr(4 downto 2) = "001" then
-                  ahbso.hrdata <= reg_b;
-              elsif ahbsi.haddr(4 downto 2) = "010" then
-                  ahbso.hrdata <= reg_c;
-              elsif ahbsi.haddr(4 downto 2) = "011" then
-                  ahbso.hrdata <= reg_d;
-              elsif ahbsi.haddr(4 downto 2) = "100" then
-                  ahbso.hrdata <= reg_r;
-              elsif ahbsi.haddr(4 downto 2) = "101" then
-                  shift := reg_a + reg_b + 1 - reg_r;
-            	  ahbso.hrdata <= ('0' & shift(31 downto 1));
-              elsif ahbsi.haddr(4 downto 2) = "110" then
-                  shift := reg_a + reg_b + reg_c + reg_d + 2 - reg_r;
-            	  ahbso.hrdata <= ("00" & shift(31 downto 2));
-              else
-                  ahbso.hrdata <= (others => '0');
-              end if;
-    	  else
-              ahbso.hrdata <= (others => '0');
-          end if;
-      end if;
-  end process;
+  -- read_process : process (clk, rst)
+  -- variable shift : std_logic_vector(31 downto 0);
+  -- begin
+      -- if rst = '0' then
+          -- ahbso.hrdata <= (others => '0');
+      -- elsif rising_edge(clk) then
+          -- if (ahbsi.hsel(ahbndx) and ahbsi.hready) = '1' then
+			-- if ahbsi.haddr(4 downto 2) = "101" then
+                  -- shift := reg_a + reg_b + 1 - reg_r;
+            	  -- ahbso.hrdata <= ('0' & shift(31 downto 1));
+              -- elsif ahbsi.haddr(4 downto 2) = "110" then
+                  -- shift := reg_a + reg_b + reg_c + reg_d + 2 - reg_r;
+            	  -- ahbso.hrdata <= ("00" & shift(31 downto 2));
+              -- else
+                  -- ahbso.hrdata <= (others => '0');
+              -- end if;
+    	  -- else
+              -- ahbso.hrdata <= (others => '0');
+          -- end if;
+      -- end if;
+  -- end process;
 
 -- pragma translate_off
   bootmsg : report_version 
