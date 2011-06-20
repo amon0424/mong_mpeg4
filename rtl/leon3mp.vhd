@@ -652,14 +652,14 @@ begin
     port map (rstn, clkm, ahbsi, ahbso(6));
 
 	dma0 : dmatest generic map (
-				ahbndx => 5,
+				slvidx => 5,
 				ahbaddr => 16#B03#,
 				verid => 1,
 				irq_no => 13,
-				hindex => CFG_NCPU+CFG_AHB_UART+CFG_GRETH+CFG_AHB_JTAG+
+				mstidx => CFG_NCPU+CFG_AHB_UART+CFG_GRETH+CFG_AHB_JTAG+
                        CFG_SVGA_ENABLE+CFG_SPW_NUM*CFG_SPW_EN+
                        CFG_GRUSB_DCL+CFG_GRUSBDC+CFG_ATA,
-				dbuf => 8)
+				dbuf => 27)
 	port map (rstn, clkm, ahbsi, ahbso(5), ahbmi, 
 		ahbmo(CFG_NCPU+CFG_AHB_UART+CFG_GRETH+CFG_AHB_JTAG+
 			   CFG_SVGA_ENABLE+CFG_SPW_NUM*CFG_SPW_EN+

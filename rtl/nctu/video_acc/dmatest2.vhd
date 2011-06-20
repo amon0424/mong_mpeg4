@@ -20,7 +20,6 @@ library grlib;
 use grlib.amba.all;
 use grlib.stdlib.all;
 use grlib.devices.all;
-use grlib.DMA2AHB_Package.all;
 
 library gaisler;
 use gaisler.misc.all;
@@ -30,14 +29,14 @@ use techmap.gencomp.all;
 
 entity dmatest is
   generic (
-    slvidx  : integer := 0;	-- slave index
+    ahbndx  : integer := 0;
     ahbaddr : integer := 0;
     addrmsk : integer := 16#fff#;
     verid   : integer := 0;
     irq_no  : integer := 0;
 	
 	-- for dma
-	mstidx : integer := 0;	-- master index
+	hindex : integer := 0;
 	dbuf   : integer := 4
   );
 
@@ -54,7 +53,8 @@ entity dmatest is
 end;
 
 architecture rtl of dmatest is
-
+signal valid : std_logic; -- is the logic selected by a master
+signal temp_addr : std_logic_vector(31 downto 0);
 
 constant hconfig : ahb_config_type := (
   0      => ahb_device_reg ( VENDOR_NCTU, NCTU_MCOMP, 0, verid, irq_no),
@@ -91,24 +91,99 @@ type reg_type is record
   write_rfactor : std_logic;
   write_action : std_logic;
   src_mcomp : std_logic;
-  rfactor : std_logic_vector(31 downto 0);
-  beat : integer range 0 to 4;
-  
-  write_valid : std_logic; -- is the logic selected by a master
-  write_addr : std_logic_vector(31 downto 0);
 end record;
 
 signal r, rin : reg_type;
-signal dmai : dma_in_type;
-signal dmao : dma_out_type;
+signal dmai : ahb_dma_in_type;
+signal dmao : ahb_dma_out_type;
 ----------------------------------
+
+signal src_addr : std_logic_vector(31 downto 0);	-- 000
+signal dst_addr : std_logic_vector(31 downto 0);	-- 001
+--signal stride  : std_logic_vector(31 downto 0);		-- 010
+signal rfactor  : std_logic_vector(31 downto 0);	-- 011
+signal action : std_logic;							-- 100
 
 --signal readCountInRow : std_logic_vector(3 downto 0);	-- 0~9
 --signal width : std_logic_vector(3 downto 0);			-- 0~9
-type Data_Vector  is array (Natural range <> ) of Std_Logic_Vector(32-1 downto 0);
-begin
 
-	
+begin
+	-- ahbso.hresp   <= "00"; 
+	-- ahbso.hsplit  <= (others => '0'); 
+	-- ahbso.hirq    <= (others => '0');
+	-- ahbso.hcache  <= '0';
+	-- ahbso.hconfig <= hconfig;
+	-- ahbso.hindex  <= ahbndx;
+
+	-- ready_ctrl : process (clk, rst)
+	-- begin
+		-- if rst = '0' then
+			-- ahbso.hready <= '1';
+		-- elsif rising_edge(clk ) then
+			-- if (ahbsi.hsel(ahbndx) and ahbsi.htrans(1)) = '1' then
+				-- ahbso.hready <= '1';-- you should control this signal for
+									-- -- multi-cycle data processing
+			-- end if;
+		-- end if;
+	-- end process;
+
+	-- addr_fetch : process (clk, rst)
+	-- begin
+		-- if rst = '0' then
+			-- temp_addr <= (others => '0');
+			-- valid <= '0';
+		-- elsif rising_edge(clk) then
+			-- if (ahbsi.hsel(ahbndx) and ahbsi.htrans(1) and
+				-- ahbsi.hready and ahbsi.hwrite) = '1' then
+				-- temp_addr <= ahbsi.haddr;
+				-- valid <= '1';
+			-- else
+				-- valid <= '0';
+			-- end if;
+		-- end if;
+	-- end process;
+
+	-- write_process : process (clk, rst)
+	-- begin
+		-- if rst = '0' then
+			-- src_addr <= (others=>'0');
+			-- dst_addr <= (others=>'0');
+			-- stride <= (others=>'0');
+			-- rfactor <= (others=>'0');
+			-- action <= '0';
+		-- elsif rising_edge(clk) then
+			-- if valid = '1' then
+				-- if(temp_addr(2 downto 0) = "000")then
+					-- src_addr <= ahbsi.hwdata;
+				-- elsif(temp_addr(2 downto 0) = "001")then
+					-- dst_addr <= ahbsi.hwdata;
+				-- elsif(temp_addr(2 downto 0) = "010")then
+					-- stride <= ahbsi.hwdata;
+				-- elsif(temp_addr(2 downto 0) = "011")then
+					-- rfactor <= ahbsi.hwdata;
+				-- elsif(temp_addr(2 downto 0) = "100")then
+					-- action <= ahbsi.hwdata(0);
+				-- end if;
+			-- end if;
+		-- end if;
+	-- end process;
+
+	-- read_process : process (clk, rst)
+	-- variable shift : std_logic_vector(31 downto 0);
+	-- begin
+	-- if rst = '0' then
+		-- ahbso.hrdata <= (others => '0');
+	-- elsif rising_edge(clk) then
+		-- if (ahbsi.hsel(ahbndx) and ahbsi.hready) = '1' then
+			-- if(temp_addr(2 downto 0) = "100")then
+				-- ahbso.hrdata <= (31 downto 1 => '0') & action;
+			-- end if;
+		-- else
+		  -- ahbso.hrdata <= (others => '0');
+		-- end if;
+	-- end if;
+	-- end process;
+  
 	---------------------ahb dma----------------------
 	comb : process(ahbsi, dmao, rst, r)
 		variable v       : reg_type;
@@ -129,10 +204,6 @@ begin
 		variable ainc    : std_logic_vector( 3 downto 0);
 		variable write_length : integer range 0 to dbuf;
 		variable read_length : integer range 0 to dbuf;
-		variable data 	: Data_Vector(26 downto 0);
-		variable TP 		: Boolean;
-		variable trans_size : integer range 0 to 32;
-		variable DataPart:            Integer := 0;
 	begin
 		v := r; 
 		regd := (others => '0'); 
@@ -143,9 +214,7 @@ begin
 		mexc := '0';
 		size := r.srcinc; 
 		irq := '0'; 
-		--v.inhibit := '0';
-		start := r.enable;
-		burst := '0'; 
+		v.inhibit := '0';
 		
 		if v.src_mcomp = '0' then	-- read from ram, write to mcomp
 			read_length := dbuf;
@@ -162,6 +231,8 @@ begin
 		end if;
 		
 		newlen := r.len - 1;
+
+		
 		
 		if r.write = '0' then 
 			oldaddr := r.srcaddr(9 downto 0); 
@@ -170,64 +241,23 @@ begin
 			oldaddr := r.dstaddr(9 downto 0); 
 			oldsize := r.dstinc; 
 		end if;
-		
-		ainc := decode(oldsize);
-		trans_size := conv_integer(ainc);
-		
-		
-		
-		-- transfer size
-		if trans_size=4 then
-			dmai.Size <= HSIZE32;
-		elsif trans_size=2 then
-			dmai.Size <= HSIZE16;
-			if address(1 downto 0) = "00" then
-				DataPart := 0;
-			else
-				DataPart := 1;
-			end if;
-		elsif trans_size=1 then
-			dmai.Size <= HSIZE8;
-			if address(1 downto 0) = "00" then
-				DataPart := 0;
-			elsif address(1 downto 0) = "01" then
-				DataPart := 1;
-			elsif address(1 downto 0) = "10" then
-				DataPart := 2;
-			else
-				DataPart := 3;
-			end if;
-		--else
-		--	report "Unsupported data width"
-		--	severity Failure;
-		end if;
 
-		if r.enable = '1' and r.beat < 4 then	-- skip the 4th beat data
+		ainc := decode(oldsize);
+		
+		if dmao.active = '1' and r.enable = '1' then
 			if r.write = '0' then	-- read from source
-				if dmao.Ready = '1' then
-					--v.data(r.cnt) := dmao.rdata;
-					if trans_size=4 then		-- read 4 byte
-					   v.data(r.cnt)    := dmao.Data;
-					elsif trans_size=2 then	-- read 2 byte
-					   v.data((r.cnt)/2)((31-16*((r.cnt) mod 2)) downto (16-(16*((r.cnt) mod 2)))) :=
-						 dmao.Data((31-16*DataPart) downto (16-16*DataPart));
-					   --DataPart := (DataPart + 1) mod 2;
-					elsif trans_size=1 then	-- read 1 byte
-					   v.data((r.cnt)/4)((31-8*((r.cnt) mod 4)) downto (24-(8*((r.cnt) mod 4)))) :=
-						 dmao.Data((31-8*DataPart) downto (24-8*DataPart));
-					   --DataPart := (DataPart + 1) mod 4;
-					end if;
-					
+				if dmao.ready = '1' then
+					v.data(r.cnt) := dmao.rdata;
 					if r.cnt = read_length-1 then 
 						v.write := '1'; 
 						v.cnt := 0; 
 						v.inhibit := '1';
 						address := r.dstaddr; 
 						size := r.dstinc;
-					else
+					else 
 						v.cnt := r.cnt + 1; 
 					end if;
-			
+					
 					if r.readCountInRow < r.src_width and not (r.cnt = read_length-1) then 
 						v.readCountInRow := r.readCountInRow + ainc;
 					else
@@ -247,7 +277,6 @@ begin
 				elsif r.cnt = write_length-1 then 
 					start := '0'; 
 				end if;
-				
 				if dmao.ready = '1' then
 					if r.cnt = write_length-1 then
 						if(r.src_mcomp='1' or r.write_rfactor='1') then -- when write done, finish work
@@ -270,107 +299,70 @@ begin
 			end if;
 		end if;
 
+		if (r.cnt < read_length-1
+			or v.write_rfactor='1'
+			or (r.len(9 downto 2) = "11111111"))then 
+			burst := '1'; 
+		else 
+			burst := '0'; 
+		end if;
 		
 		start := r.enable;
 
-		newaddr := oldaddr + ainc(3 downto 0);
-		
-		-- beat counter
-		if(dmao.Okay = '1' and dmai.Beat = HINCR4) and r.beat < 4 then
-			v.beat := v.beat + 1;
-		else
-			v.beat := 0;
-		end if;
-		
-		-- go to next row
-		if r.beat = 4 then
-			if r.write = '0' then 
-				v.srcaddr := v.srcaddr + r.src_stride(9 downto 0);
-				--v.inhibit := '1';
-			else
-				v.dstaddr := v.dstaddr + r.dst_stride(9 downto 0);
-				--v.inhibit := '1';
-			end if;
-		--elsif(
-		--	v.inhibit := '0';
-		end if;
-		
-		if r.enable ='1' and r.beat = 0 and dmao.Grant = '1' then
-			burst := '1';
-		end if;
-		
-		-- burst
-		if (r.cnt < read_length-1 or v.write_rfactor='1' or (r.len(9 downto 2) = "11111111")) and
-			v.beat < 3 then -- if beat = 3, we early stop burst
-			--if (dmao.Request and dmao.Ready) = '1' then
-				-- decide the new address
-			v.inhibit := '0';
-			--burst := '1';
-			-- if dmao.Ready = '1'then
-				-- if r.write = '0' then 
-					-- if not (r.src_stride = (31 downto 0 =>'0')) and r.readCountInRow + ainc >= r.src_width then
-						-- burst := '0';
-						-- v.srcaddr := v.srcaddr + r.src_stride(9 downto 0) - r.readCountInRow;
-					-- else
-						-- burst := '1';
-						-- --v.srcaddr(9 downto 0) := newaddr;
-					-- end if;
-				-- else
-					-- if not (r.dst_stride = (31 downto 0 =>'0')) and r.readCountInRow + ainc >= r.dst_width then
-						-- burst := '0';
-						-- v.dstaddr := v.dstaddr + r.dst_stride(9 downto 0) - r.readCountInRow;
-					-- else
-						 
-						-- --v.dstaddr(9 downto 0) := newaddr;
-					-- end if;
-				-- end if;
-			-- end if;
-		else 
-			v.inhibit := '1';
-			--burst := '0'; 
-		end if;
-		
-		
-		
-		if (r.write = '0' and not (r.src_stride = (31 downto 0 =>'0'))) or (r.write = '1' and not (r.dst_stride = (31 downto 0 =>'0')))then	
-			-- if read source need stride, or write destination need stride
-			dmai.Beat <= HINCR4;
-		else
-			dmai.Beat <= HINCR;
-		end if;
+		--if r.readCountInRow + 4 < r.width then
+			newaddr := oldaddr + ainc(3 downto 0);
+		--else
+			-- newaddr := oldaddr + r.stride(9 downto 0) - r.readCountInRow;
+		--end if;
 
-		-- AHB write address fetch
-		if (ahbsi.hsel(slvidx) and ahbsi.htrans(1) and ahbsi.hready and ahbsi.hwrite) = '1' then
-			v.write_addr := ahbsi.haddr;
-			v.write_valid := '1';
-		else
-			v.write_valid := '0';
+		if (dmao.active and dmao.ready) = '1' then
+			if r.write = '0' then 
+				if not (r.src_stride = (31 downto 4 => '0') & r.src_width) and r.readCountInRow + ainc >= r.src_width then
+					v.inhibit := '1';
+					v.srcaddr := v.srcaddr + r.src_stride(9 downto 0) - r.readCountInRow;
+				else
+					v.srcaddr(9 downto 0) := newaddr;
+				end if;
+			else
+				if not (r.dst_stride = (31 downto 4 => '0') & r.dst_width) and r.readCountInRow + ainc >= r.dst_width then
+					v.inhibit := '1';
+					v.dstaddr := v.dstaddr + r.dst_stride(9 downto 0) - r.readCountInRow;
+				else
+					v.dstaddr(9 downto 0) := newaddr;
+				end if;
+				v.dstaddr(9 downto 0) := newaddr; 
+			end if;
 		end if;
 		
-		-- AHB write data fetch
-		if(r.write_valid = '1')then
-			case r.write_addr(5 downto 2) is
-				when "0000" => -- 0x00
-					v.srcaddr := ahbsi.hwdata;
-				when "0001" => -- 0x04
-					v.dstaddr := ahbsi.hwdata;
-				when "0010" => -- 0x08
-					v.len := ahbsi.hwdata(15 downto 0);
-					v.srcinc := ahbsi.hwdata(17 downto 16);
-					v.dstinc := ahbsi.hwdata(19 downto 18);
-					v.enable := ahbsi.hwdata(20);
-					v.src_mcomp := ahbsi.hwdata(21);
-				when "0011" => -- 0x0C
-					v.src_stride := ahbsi.hwdata;
-				when "0100" => -- 0x10
-					v.src_width := ahbsi.hwdata(3 downto 0);
-				when "0101" => -- 0x14
-					v.dst_stride := ahbsi.hwdata;
-				when "0110" => -- 0x18
-					v.dst_width := ahbsi.hwdata(3 downto 0);
-				when "0111" => -- 0x1C
-					v.rfactor := ahbsi.hwdata;	-- r factor
-				when others => null;
+		
+
+		
+
+		-- write DMA registers
+		--if (ahbsi.hsel(ahbndx) and ahbsi.henable and ahbsi.hwrite) = '1' then
+		if (ahbsi.hsel(ahbndx) and ahbsi.hwrite) = '1' then
+			case ahbsi.haddr(5 downto 2) is
+			when "0000" => -- 0x00
+				v.srcaddr := ahbsi.hwdata;
+			when "0001" => -- 0x04
+				v.dstaddr := ahbsi.hwdata;
+			when "0010" => -- 0x08
+				v.len := ahbsi.hwdata(15 downto 0);
+				v.srcinc := ahbsi.hwdata(17 downto 16);
+				v.dstinc := ahbsi.hwdata(19 downto 18);
+				v.enable := ahbsi.hwdata(20);
+				v.src_mcomp := ahbsi.hwdata(21);
+			when "0011" => -- 0x0C
+				v.src_stride := ahbsi.hwdata;
+			when "0100" => -- 0x10
+				v.src_width := ahbsi.hwdata(3 downto 0);
+			when "0101" => -- 0x14
+				v.dst_stride := ahbsi.hwdata;
+			when "0110" => -- 0x18
+				v.dst_width := ahbsi.hwdata(3 downto 0);
+			when "0111" => -- 0x1C
+				rfactor <= ahbsi.hwdata;	-- r factor
+			when others => null;
 			end case;
 		end if;
 
@@ -380,77 +372,47 @@ begin
 			v.write := '0';
 			v.cnt  := 0;
 			v.readCountInRow := (others=>'0');
-			v.srcaddr := (others=>'0');
-			v.dstaddr := (others=>'0');
-			v.srcinc := (others=>'0');
-			v.dstinc := (others=>'0');
 			v.src_stride := (others=>'0');
 			v.src_width := (others=>'0');
 			v.dst_stride := (others=>'0');
 			v.dst_width := (others=>'0');
 			v.src_mcomp := '0';
 			v.write_rfactor := '0';
-			--DMAInit(clk,  dmai);
-			v.write_addr := (others=>'0');
-			v.write_valid := '0';
-			v.rfactor := (others=>'0');
-			v.beat := 0;
 		end if;
-		
-		
-		
+
 		rin <= v;
 		
-		dmai.Request <= start and not v.inhibit;
-		dmai.Burst   <= burst;
-		dmai.Store   <= v.write;
-		dmai.Address <= address;
-		dmai.Reset	 <= '0';
-		dmai.Size    <= size;
-		
+		dmai.address <= address;
+		if r.write_rfactor = '0' then
+			dmai.wdata <= r.data(r.cnt);
+		else
+			dmai.wdata <= rfactor;
+		end if;
+		dmai.start   <= start and not v.inhibit;
+		dmai.burst   <= burst;
+		dmai.write   <= v.write;
+		dmai.size    <= size;
 		ahbso.hirq    <= (others =>'0');
-		ahbso.hindex  <= slvidx;
+		ahbso.hindex  <= ahbndx;
 		ahbso.hconfig <= hconfig;
 	end process;
 	
-	mst : DMA2AHB generic map(
-		hindex => mstidx,
-		vendorid => VENDOR_NCTU,
-		deviceid => NCTU_MCOMP,
-		version => verid
-	)
-	port map(
-		-- AMBA AHB system signals
-		HCLK => clk,
-		HRESETn => rst,
-
-		-- Direct Memory Access Interface
-		DMAIn => dmai,
-		DMAOut => dmao,
-
-		-- AMBA AHB Master Interface
-		AHBIn => ahbmi,
-		AHBOut => ahbmo
-	);
-
 	ahb_read : process(clk, rst)
 	begin 
 		if rst = '0' then
 			ahbso.hrdata  <= (others => '0');
 		elsif rising_edge(clk) then 
 			-- read DMA registers
-			if (ahbsi.hsel(slvidx) and ahbsi.hready) = '1' then
-				case ahbsi.haddr(3 downto 2) is
-				when "00" => 
-					ahbso.hrdata  <= r.srcaddr;
-				when "01" => 
-					ahbso.hrdata  <= r.dstaddr;
-				when "10" => 
-					ahbso.hrdata <= (31 downto 21 => '0') & r.enable & r.srcinc & r.dstinc & r.len;
-				when others => 
-					ahbso.hrdata  <= (others => '0');
-				end case;
-			end if;
+			case ahbsi.haddr(3 downto 2) is
+			when "00" => 
+				ahbso.hrdata  <= r.srcaddr;
+			when "01" => 
+				ahbso.hrdata  <= r.dstaddr;
+			when "10" => 
+				ahbso.hrdata <= (31 downto 21 => '0') & r.enable & r.srcinc & r.dstinc & r.len;
+			when others => 
+				ahbso.hrdata  <= (others => '0');
+			end case;
 		end if; 
 	end process;
 
@@ -461,6 +423,9 @@ begin
 		end if; 
 	end process;
 	--------------------end of dma--------------------
+	
+	ahbif : ahbmst generic map (hindex => hindex, devid => verid, incaddr => 1) 
+	port map (rst, clk, dmai, dmao, ahbmi, ahbmo);
 	
 	-- process (rst, clk)
 	-- begin
@@ -484,7 +449,7 @@ begin
 
 -- pragma translate_off
   bootmsg : report_version 
-  generic map ("Final " & tost(slvidx) & ": dma test");
+  generic map ("Final " & tost(ahbndx) & ": dma test");
 -- pragma translate_on
 end;
 

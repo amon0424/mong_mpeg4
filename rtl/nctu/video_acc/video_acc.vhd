@@ -119,14 +119,14 @@ package video_acc is
 	
 	component dmatest is
 	  generic (
-		ahbndx  : integer := 0;
+		slvidx  : integer := 0;
 		ahbaddr : integer := 0;
 		addrmsk : integer := 16#fff#;
 		verid   : integer := 0;
 		irq_no  : integer := 0;
 		
 		-- for dma
-		hindex : integer := 0;
+		mstidx : integer := 0;
 		dbuf   : integer := 4
 	  );
 
