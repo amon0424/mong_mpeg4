@@ -143,7 +143,7 @@ begin
 		mexc := '0';
 		size := r.srcinc; 
 		irq := '0'; 
-		--v.inhibit := '0';
+		v.inhibit := '0';
 		start := r.enable;
 		burst := '0'; 
 		
@@ -202,7 +202,7 @@ begin
 		--	severity Failure;
 		end if;
 
-		if r.enable = '1' and r.beat < 4 then	-- skip the 4th beat data
+		if r.enable = '1' then	-- skip the 4th beat data
 			if r.write = '0' then	-- read from source
 				if dmao.Ready = '1' then
 					--v.data(r.cnt) := dmao.rdata;
@@ -276,14 +276,14 @@ begin
 		newaddr := oldaddr + ainc(3 downto 0);
 		
 		-- beat counter
-		if(dmao.Okay = '1' and dmai.Beat = HINCR4) and r.beat < 4 then
+		if(dmao.Okay = '1' and r.beat < 4)then
 			v.beat := v.beat + 1;
 		else
 			v.beat := 0;
 		end if;
 		
 		-- go to next row
-		if r.beat = 4 then
+		if r.beat = 1 then
 			if r.write = '0' then 
 				v.srcaddr := v.srcaddr + r.src_stride(9 downto 0);
 				--v.inhibit := '1';
@@ -295,16 +295,16 @@ begin
 		--	v.inhibit := '0';
 		end if;
 		
-		if r.enable ='1' and r.beat = 0 and dmao.Grant = '1' then
-			burst := '1';
-		end if;
+		-- if r.enable ='1' and r.beat = 0 and dmao.Grant = '1' then
+			-- burst := '1';
+		-- end if;
 		
 		-- burst
-		if (r.cnt < read_length-1 or v.write_rfactor='1' or (r.len(9 downto 2) = "11111111")) and
-			v.beat < 3 then -- if beat = 3, we early stop burst
+		if r.enable = '1' and (r.cnt < read_length-1 or v.write_rfactor='1' or (r.len(9 downto 2) = "11111111")) and
+			not (r.beat = 2) then -- if beat = 3, we early stop burst
 			--if (dmao.Request and dmao.Ready) = '1' then
 				-- decide the new address
-			v.inhibit := '0';
+			--v.inhibit := '0';
 			--burst := '1';
 			-- if dmao.Ready = '1'then
 				-- if r.write = '0' then 
@@ -326,15 +326,24 @@ begin
 				-- end if;
 			-- end if;
 		else 
-			v.inhibit := '1';
+			--v.inhibit := '1';
 			--burst := '0'; 
+		end if;
+		
+		-- request control
+		if(v.beat = 0)then
+			v.inhibit := '0';
+			burst := '1'; 
+		else
+			v.inhibit := '1';
+			burst := '0'; 
 		end if;
 		
 		
 		
 		if (r.write = '0' and not (r.src_stride = (31 downto 0 =>'0'))) or (r.write = '1' and not (r.dst_stride = (31 downto 0 =>'0')))then	
 			-- if read source need stride, or write destination need stride
-			dmai.Beat <= HINCR4;
+			dmai.Beat <= HINCR;
 		else
 			dmai.Beat <= HINCR;
 		end if;
