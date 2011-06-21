@@ -158,9 +158,9 @@ begin
 			reg_r <= (others => '0');
 		elsif rising_edge(clk) then
 			if wr_valid = '1' then
-				if addr_wr(6 downto 2) = "11011" then -- 27
+				if addr_wr(6 downto 2) = "11011" then -- 27, 0x6C
 					reg_r <= ahbsi.hwdata;
-				elsif addr_wr(6 downto 2) = "11100" then -- 28, mode
+				elsif addr_wr(6 downto 2) = "11100" then -- 28, 0x70 mode
 					mode <= ahbsi.hwdata(1 downto 0);
 				end if;
 			end if;
@@ -174,7 +174,12 @@ begin
 			read_value <= (others => '0');
 			reading <= '0';
 		elsif rising_edge(clk) then
-			
+			if (ahbsi.hsel(ahbndx)) = '1' and ahbsi.hwrite = '0' then
+				reading <= '1';
+			else
+				reading <= '0';
+				ahbso.hrdata <= (others => '0');
+			end if;
 			if reading = '1' then
 				-- if mode = "00" then
 					-- --shift := reg_a + reg_b + 1 - reg_r;
@@ -187,14 +192,6 @@ begin
 				-- end if;
 				ahbso.hrdata <= ram_do1;
 				-- if no next request
-				if not ((ahbsi.hsel(ahbndx) and ahbsi.hready) = '1' and ahbsi.hwrite = '0') then
-					reading <= '0';
-				end if;
-			elsif (ahbsi.hsel(ahbndx) and ahbsi.hready) = '1' and ahbsi.hwrite = '0' then
-				reading <= '1';
-			else
-				reading <= '0';
-				ahbso.hrdata <= (others => '0');
 			end if;
 		end if;
 	end process;

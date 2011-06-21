@@ -136,6 +136,7 @@ begin
 		variable TP 		: Boolean;
 		variable trans_size : integer range 0 to 32;
 		variable DataPart:            Integer := 0;
+		variable need_split_burst : Boolean;
 	begin
 		v := r; 
 		regd := (others => '0'); 
@@ -149,6 +150,7 @@ begin
 		v.inhibit := '0';
 		start := r.enable;
 		burst := '0'; 
+		v.beat := 0;
 		
 		if v.src_mcomp = '0' then	-- read from ram, write to mcomp
 			read_length := dbuf;
@@ -205,9 +207,18 @@ begin
 		--	severity Failure;
 		end if;
 
-		if r.enable = '1' then	-- skip the 4th beat data
+		if r.enable = '1' then
+			v.inhibit := '0';
+			burst := '1'; 
 			if r.write = '0' then	-- read from source
-				if dmao.Ready = '1' then
+				need_split_burst := (r.src_stride /= (31 downto 0 =>'0'));
+				
+				-- set new address of new burst
+				if r.beat = 3 then
+					v.srcaddr := r.srcaddr + r.src_stride(9 downto 0);
+				end if;
+				
+				if dmao.READY = '1' then
 					--v.data(r.cnt) := dmao.rdata;
 					if trans_size=4 then		-- read 4 byte
 					   v.data(r.cnt)    := dmao.Data;
@@ -239,6 +250,12 @@ begin
 					end if;
 				end if;
 			else	-- write to destination
+				need_split_burst := (r.dst_stride /= (31 downto 0 =>'0'));
+				
+				-- set new address of new burst
+				if r.beat = 3 then
+					v.dstaddr := r.dstaddr + r.dst_stride(9 downto 0);
+				end if;
 				
 				if r.src_mcomp = '0' then
 					-- write to mcomp, we need to write rfactor
@@ -254,7 +271,7 @@ begin
 					start := '0'; 
 				end if;
 				
-				if dmao.Okay = '1' then
+				if dmao.OKAY = '1' then
 					if r.cnt = write_length-1 then
 						if(r.src_mcomp='1' or r.dstate = write_mode) then -- when write done, finish work
 							v.cnt := 0;
@@ -275,6 +292,19 @@ begin
 					end if;
 				end if;
 			end if;
+			
+			if need_split_burst and r.beat > 0 then
+				-- pause transfer
+				v.inhibit := '1';
+				burst := '0'; 
+			end if;
+			if dmao.OKAY = '1' then
+				if need_split_burst and r.beat < 4 then	
+					v.beat := r.beat + 1;
+				else
+					v.beat := 0;
+				end if;
+			end if;
 		end if;
 
 		
@@ -283,24 +313,25 @@ begin
 		newaddr := oldaddr + ainc(3 downto 0);
 		
 		-- beat counter
-		if(dmao.Okay = '1' and r.beat < 4)then
-			v.beat := v.beat + 1;
-		else
-			v.beat := 0;
-		end if;
+		-- if source has stride
+		-- if (r.src_stride /= (31 downto 0 => '0') and r.write = '0') and (dmao.Okay = '1' and r.beat < 4)then	
+			-- v.beat := v.beat + 1;
+		-- else
+			-- v.beat := 0;
+		-- end if;
 		
 		-- go to next row
-		if r.beat = 3 then
-			if r.write = '0' then 
-				v.srcaddr := v.srcaddr + r.src_stride(9 downto 0);
-				--v.inhibit := '1';
-			else
-				v.dstaddr := v.dstaddr + r.dst_stride(9 downto 0);
-				--v.inhibit := '1';
-			end if;
-		--elsif(
-		--	v.inhibit := '0';
-		end if;
+		-- if r.beat = 3 then
+			-- if r.write = '0' then 
+				-- v.srcaddr := v.srcaddr + r.src_stride(9 downto 0);
+				-- --v.inhibit := '1';
+			-- else
+				-- v.dstaddr := v.dstaddr + r.dst_stride(9 downto 0);
+				-- --v.inhibit := '1';
+			-- end if;
+		-- --elsif(
+		-- --	v.inhibit := '0';
+		-- end if;
 		
 		-- if r.enable ='1' and r.beat = 0 and dmao.Grant = '1' then
 			-- burst := '1';
@@ -338,25 +369,29 @@ begin
 		-- end if;
 		
 		-- request control
-		if r.beat > 0 and 
-			((r.write = '0' and not (r.src_stride = (31 downto 0 =>'0'))) or (r.write = '1' and not (r.dst_stride = (31 downto 0 =>'0'))))then
-			-- pause transfer
-			v.inhibit := '1';
-			burst := '0'; 
-			
-		else
-			v.inhibit := '0';
-			burst := '1'; 
-		end if;
+		-- if	r.enable = '1' and 
+			-- ((r.beat > 0 and 
+				-- ((r.write = '0' and not (r.src_stride = (31 downto 0 =>'0'))) or 
+				 -- (r.write = '1' and not (r.dst_stride = (31 downto 0 =>'0')))
+			-- )) or
+			-- (r.write = '1' and (r.cnt = write_length - 1 or not (r.dstate = writec ))))
+			-- then
+			-- -- pause transfer
+			-- v.inhibit := '1';
+			-- burst := '0'; 
+		-- else
+			-- v.inhibit := '0';
+			-- burst := '1'; 
+		-- end if;
 		
 		
 		
-		if (r.write = '0' and not (r.src_stride = (31 downto 0 =>'0'))) or (r.write = '1' and not (r.dst_stride = (31 downto 0 =>'0')))then	
-			-- if read source need stride, or write destination need stride
-			dmai.Beat <= HINCR;
-		else
-			dmai.Beat <= HINCR;
-		end if;
+		-- if (r.write = '0' and not (r.src_stride = (31 downto 0 =>'0'))) or (r.write = '1' and not (r.dst_stride = (31 downto 0 =>'0')))then	
+			-- -- if read source need stride, or write destination need stride
+			-- dmai.Beat <= HINCR;
+		-- else
+			-- dmai.Beat <= HINCR;
+		-- end if;
 
 		-- AHB write address fetch
 		if (ahbsi.hsel(slvidx) and ahbsi.htrans(1) and ahbsi.hready and ahbsi.hwrite) = '1' then
@@ -423,6 +458,7 @@ begin
 		rin <= v;
 		
 		dmai.Request <= start and not v.inhibit;
+		dmai.Beat 	<= HINCR;
 		dmai.Burst   <= burst;
 		dmai.Store   <= v.write;
 		dmai.Address <= address;
