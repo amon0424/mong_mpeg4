@@ -61,6 +61,7 @@ signal wr_valid : std_logic; -- is the logic selected by a master
 signal addr_wr : std_logic_vector(31 downto 0);
 signal mode : std_logic_vector(1 downto 0);
 signal read_value : std_logic_vector(31 downto 0); 
+signal reading : std_logic;
 -----------------------------------------------------------------
 -- BRAM
 -----------------------------------------------------------------
@@ -99,17 +100,26 @@ begin
 		Data_Out2	=> ram_do2
 	);
 
-  ready_ctrl : process (clk, rst)
-  begin
-      if rst = '0' then
-          ahbso.hready <= '1';
-      elsif rising_edge(clk ) then
-          if (ahbsi.hsel(ahbndx) and ahbsi.htrans(1)) = '1' then
-              ahbso.hready <= '1'; -- you should control this signal for
-                                   -- multi-cycle data processing
-          end if;
-      end if;
-  end process;
+	ready_ctrl : process (clk, rst)
+	begin
+		if rst = '0' then
+			ahbso.hready <= '1';
+			elsif rising_edge(clk ) then
+			if ahbsi.hsel(ahbndx) = '1' then
+				if ahbsi.htrans = "11" and ahbsi.hwrite = '0' then
+					ahbso.hready <= '1';
+				elsif (ahbsi.htrans(1)) = '1' then
+					if ahbsi.hwrite = '0' then 
+						ahbso.hready <= '0'; 
+					else
+						ahbso.hready <= '1'; 
+					end if;
+				elsif(reading = '1')then
+					ahbso.hready <= '1'; 
+				end if;
+			end if;
+		end if;
+	end process;
 
   addr_fetch : process (clk, rst)
   begin
@@ -132,7 +142,7 @@ begin
 			(others => '0');
   ram_we1 <= '1' when (wr_valid = '1' and addr_wr(6 downto 2) < "11011") else '0';
   ram_di1 <= ahbsi.hwdata;
-  ahbso.hrdata <= ram_do1;
+  --ahbso.hrdata <= ram_do1;
   
   ram_addr2 <= (others => '0');
   ram_we2 <= '0';
@@ -157,27 +167,37 @@ begin
 		end if;
 	end process;
 
-  read_process : process (clk, rst)
-  variable shift : std_logic_vector(31 downto 0);
-  begin
-      if rst = '0' then
-          read_value <= (others => '0');
-      elsif rising_edge(clk) then
-          if (ahbsi.hsel(ahbndx) and ahbsi.hready) = '1' then
-			if mode = "00" then
-                  shift := reg_a + reg_b + 1 - reg_r;
-            	  ahbso.hrdata <= ('0' & shift(31 downto 1));
-              elsif ahbsi.haddr(4 downto 2) = "110" then
-                  shift := reg_a + reg_b + reg_c + reg_d + 2 - reg_r;
-            	  ahbso.hrdata <= ("00" & shift(31 downto 2));
-              else
-                  ahbso.hrdata <= (others => '0');
-              end if;
-    	  else
-              ahbso.hrdata <= (others => '0');
-          end if;
-      end if;
-  end process;
+	read_process : process (clk, rst)
+	variable shift : std_logic_vector(31 downto 0);
+	begin
+		if rst = '0' then
+			read_value <= (others => '0');
+			reading <= '0';
+		elsif rising_edge(clk) then
+			
+			if reading = '1' then
+				-- if mode = "00" then
+					-- --shift := reg_a + reg_b + 1 - reg_r;
+					-- --ahbso.hrdata <= ('0' & shift(31 downto 1));
+				-- elsif mode = "01" then
+					-- --shift := reg_a + reg_b + reg_c + reg_d + 2 - reg_r;
+					-- --ahbso.hrdata <= ("00" & shift(31 downto 2));
+				-- else
+					-- ahbso.hrdata <= (others => '0');
+				-- end if;
+				ahbso.hrdata <= ram_do1;
+				-- if no next request
+				if not ((ahbsi.hsel(ahbndx) and ahbsi.hready) = '1' and ahbsi.hwrite = '0') then
+					reading <= '0';
+				end if;
+			elsif (ahbsi.hsel(ahbndx) and ahbsi.hready) = '1' and ahbsi.hwrite = '0' then
+				reading <= '1';
+			else
+				reading <= '0';
+				ahbso.hrdata <= (others => '0');
+			end if;
+		end if;
+	end process;
 
 -- pragma translate_off
   bootmsg : report_version 

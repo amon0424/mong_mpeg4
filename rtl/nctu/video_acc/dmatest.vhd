@@ -67,9 +67,11 @@ constant hconfig : ahb_config_type := (
   -- 0 => ahb_device_reg ( VENDOR_GAISLER, GAISLER_AHBDMA, 0, 0, pirq),
   -- 1 => apb_iobar(paddr, pmask));
 
-type dma_state_type is (readc, writec);
+type dma_state_type is (readc, writec, write_r, write_mode);
+
 subtype word32 is std_logic_vector(31 downto 0);
 type datavec is array (0 to dbuf-1) of word32;
+
 type reg_type is record
   srcaddr : std_logic_vector(31 downto 0);
   srcinc  : std_logic_vector(1 downto 0);
@@ -83,15 +85,16 @@ type reg_type is record
   dstate  : dma_state_type;
   data    : datavec;
   cnt     : integer range 0 to dbuf-1; --additional one for r, one for action
-  readCountInRow : std_logic_vector(3 downto 0);
+  readCountInRow : integer range 0 to 16;
   src_stride : std_logic_vector(31 downto 0);
   dst_stride : std_logic_vector(31 downto 0);
   src_width : std_logic_vector(3 downto 0);			-- 0~9
   dst_width : std_logic_vector(3 downto 0);			-- 0~9
-  write_rfactor : std_logic;
-  write_action : std_logic;
+  --write_rfactor : std_logic;
+ -- write_action : std_logic;
   src_mcomp : std_logic;
   rfactor : std_logic_vector(31 downto 0);
+  mcomp_mode : std_logic_vector(1 downto 0);
   beat : integer range 0 to 4;
   
   write_valid : std_logic; -- is the logic selected by a master
@@ -220,6 +223,7 @@ begin
 					
 					if r.cnt = read_length-1 then 
 						v.write := '1'; 
+						v.dstate := writec;
 						v.cnt := 0; 
 						v.inhibit := '1';
 						address := r.dstaddr; 
@@ -229,30 +233,33 @@ begin
 					end if;
 			
 					if r.readCountInRow < r.src_width and not (r.cnt = read_length-1) then 
-						v.readCountInRow := r.readCountInRow + ainc;
+						v.readCountInRow := r.readCountInRow + trans_size;
 					else
-						v.readCountInRow := ainc;
+						v.readCountInRow := trans_size;
 					end if;
 				end if;
 			else	-- write to destination
 				
 				if r.src_mcomp = '0' then
 					-- write to mcomp, we need to write rfactor
-					if r.write_rfactor = '1' then 
-						v.write_rfactor := '0';
-						start := '0'; 
+					if r.dstate = write_r then 
+						v.dstate  := write_mode;
+					elsif r.dstate = write_mode then
+						v.dstate := writec;
+						start := '0';
 					elsif r.cnt = write_length-1 then 
-						v.write_rfactor := '1';
+						v.dstate  := write_r;
 					end if;
 				elsif r.cnt = write_length-1 then 
 					start := '0'; 
 				end if;
 				
-				if dmao.ready = '1' then
+				if dmao.Okay = '1' then
 					if r.cnt = write_length-1 then
-						if(r.src_mcomp='1' or r.write_rfactor='1') then -- when write done, finish work
+						if(r.src_mcomp='1' or r.dstate = write_mode) then -- when write done, finish work
 							v.cnt := 0;
 							v.write := '0'; 
+							v.dstate := readc;
 							v.len := newlen; 
 							v.enable := start; 
 							irq := start;
@@ -262,9 +269,9 @@ begin
 					end if;
 					
 					if r.readCountInRow < r.dst_width and not (r.cnt = write_length-1) then 
-						v.readCountInRow := r.readCountInRow + ainc;
+						v.readCountInRow := r.readCountInRow + trans_size;
 					else
-						v.readCountInRow := ainc;
+						v.readCountInRow := trans_size;
 					end if;
 				end if;
 			end if;
@@ -283,7 +290,7 @@ begin
 		end if;
 		
 		-- go to next row
-		if r.beat = 1 then
+		if r.beat = 3 then
 			if r.write = '0' then 
 				v.srcaddr := v.srcaddr + r.src_stride(9 downto 0);
 				--v.inhibit := '1';
@@ -300,43 +307,46 @@ begin
 		-- end if;
 		
 		-- burst
-		if r.enable = '1' and (r.cnt < read_length-1 or v.write_rfactor='1' or (r.len(9 downto 2) = "11111111")) and
-			not (r.beat = 2) then -- if beat = 3, we early stop burst
-			--if (dmao.Request and dmao.Ready) = '1' then
-				-- decide the new address
-			--v.inhibit := '0';
-			--burst := '1';
-			-- if dmao.Ready = '1'then
-				-- if r.write = '0' then 
-					-- if not (r.src_stride = (31 downto 0 =>'0')) and r.readCountInRow + ainc >= r.src_width then
-						-- burst := '0';
-						-- v.srcaddr := v.srcaddr + r.src_stride(9 downto 0) - r.readCountInRow;
-					-- else
-						-- burst := '1';
-						-- --v.srcaddr(9 downto 0) := newaddr;
-					-- end if;
-				-- else
-					-- if not (r.dst_stride = (31 downto 0 =>'0')) and r.readCountInRow + ainc >= r.dst_width then
-						-- burst := '0';
-						-- v.dstaddr := v.dstaddr + r.dst_stride(9 downto 0) - r.readCountInRow;
-					-- else
+		-- if r.enable = '1' and (r.cnt < read_length-1 or v.write_rfactor='1' or (r.len(9 downto 2) = "11111111")) and
+			-- not (r.beat = 2) then -- if beat = 3, we early stop burst
+			-- --if (dmao.Request and dmao.Ready) = '1' then
+				-- -- decide the new address
+			-- --v.inhibit := '0';
+			-- --burst := '1';
+			-- -- if dmao.Ready = '1'then
+				-- -- if r.write = '0' then 
+					-- -- if not (r.src_stride = (31 downto 0 =>'0')) and r.readCountInRow + ainc >= r.src_width then
+						-- -- burst := '0';
+						-- -- v.srcaddr := v.srcaddr + r.src_stride(9 downto 0) - r.readCountInRow;
+					-- -- else
+						-- -- burst := '1';
+						-- -- --v.srcaddr(9 downto 0) := newaddr;
+					-- -- end if;
+				-- -- else
+					-- -- if not (r.dst_stride = (31 downto 0 =>'0')) and r.readCountInRow + ainc >= r.dst_width then
+						-- -- burst := '0';
+						-- -- v.dstaddr := v.dstaddr + r.dst_stride(9 downto 0) - r.readCountInRow;
+					-- -- else
 						 
-						-- --v.dstaddr(9 downto 0) := newaddr;
-					-- end if;
-				-- end if;
-			-- end if;
-		else 
-			--v.inhibit := '1';
-			--burst := '0'; 
-		end if;
+						-- -- --v.dstaddr(9 downto 0) := newaddr;
+					-- -- end if;
+				-- -- end if;
+			-- -- end if;
+		-- else 
+			-- --v.inhibit := '1';
+			-- --burst := '0'; 
+		-- end if;
 		
 		-- request control
-		if(v.beat = 0)then
-			v.inhibit := '0';
-			burst := '1'; 
-		else
+		if r.beat > 0 and 
+			((r.write = '0' and not (r.src_stride = (31 downto 0 =>'0'))) or (r.write = '1' and not (r.dst_stride = (31 downto 0 =>'0'))))then
+			-- pause transfer
 			v.inhibit := '1';
 			burst := '0'; 
+			
+		else
+			v.inhibit := '0';
+			burst := '1'; 
 		end if;
 		
 		
@@ -378,7 +388,8 @@ begin
 				when "0110" => -- 0x18
 					v.dst_width := ahbsi.hwdata(3 downto 0);
 				when "0111" => -- 0x1C
-					v.rfactor := ahbsi.hwdata;	-- r factor
+					v.rfactor := "00" & ahbsi.hwdata(29 downto 0);		-- r factor
+					v.mcomp_mode := ahbsi.hwdata(31 downto 30); -- mocmp mode
 				when others => null;
 			end case;
 		end if;
@@ -388,7 +399,7 @@ begin
 			v.enable := '0'; 
 			v.write := '0';
 			v.cnt  := 0;
-			v.readCountInRow := (others=>'0');
+			v.readCountInRow := 0;
 			v.srcaddr := (others=>'0');
 			v.dstaddr := (others=>'0');
 			v.srcinc := (others=>'0');
@@ -398,11 +409,12 @@ begin
 			v.dst_stride := (others=>'0');
 			v.dst_width := (others=>'0');
 			v.src_mcomp := '0';
-			v.write_rfactor := '0';
+			--v.write_rfactor := '0';
 			--DMAInit(clk,  dmai);
 			v.write_addr := (others=>'0');
 			v.write_valid := '0';
 			v.rfactor := (others=>'0');
+			v.mcomp_mode := (others=>'0');
 			v.beat := 0;
 		end if;
 		
@@ -416,7 +428,17 @@ begin
 		dmai.Address <= address;
 		dmai.Reset	 <= '0';
 		dmai.Size    <= size;
-		
+		if r.write = '1' then
+			if r.dstate = writec then
+				dmai.Data <= r.data(r.cnt);
+			elsif r.dstate = write_r then
+				dmai.Data <= r.rfactor;
+			elsif r.dstate = write_mode then
+				dmai.Data <= (31 downto 2 => '0') & r.mcomp_mode;
+			end if;
+		else
+			dmai.Data <= (others=>'0');
+		end if;
 		ahbso.hirq    <= (others =>'0');
 		ahbso.hindex  <= slvidx;
 		ahbso.hconfig <= hconfig;

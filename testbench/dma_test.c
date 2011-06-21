@@ -39,7 +39,7 @@ main(int argc, char **argv)
 	*dma_src_width = 9;  
 	//*dma_dst_stride = 8;
 	*dma_dst_width = 8;  
-	//*dma_r = 1;
+	*dma_r = (3 << 30) | 1;
 	*dma_other = (1 << 20) | (2 << 18) | (2 << 16) | ( 2 );
 	
 	while((*dma_other) >> 20);
