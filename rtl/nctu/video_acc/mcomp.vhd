@@ -73,7 +73,8 @@ signal ram_di1 : std_logic_vector(31 downto 0);
 signal ram_di2 : std_logic_vector(31 downto 0);
 signal ram_do1 : std_logic_vector(31 downto 0);
 signal ram_do2 : std_logic_vector(31 downto 0);
-
+signal next_rdata : std_logic_vector(31 downto 0);
+signal next_addr : std_logic_vector(31 downto 0);
 begin
   ahbso.hresp   <= "00"; 
   ahbso.hsplit  <= (others => '0'); 
@@ -137,16 +138,35 @@ begin
       end if;
   end process;
   
-  ram_addr1 <= addr_wr(6 downto 2) when (wr_valid = '1' and addr_wr(6 downto 2) < "11011") else 
-			ahbsi.haddr(6 downto 2) + ahbsi.haddr(6 downto 3) when ahbsi.haddr(6 downto 2) < "10010" else
+  ram_addr1 <= addr_wr(6 downto 2) when (wr_valid = '1' and addr_wr(6 downto 2) < "11011") else 			-- write
+			ahbsi.haddr(6 downto 2) + ahbsi.haddr(6 downto 3) when ahbsi.hwrite = '0' and ahbsi.haddr(6 downto 2) < "10010" and ahbsi.htrans = "10" else	-- 1st read
+			next_addr(6 downto 2) + next_addr(6 downto 3) when ahbsi.hwrite = '0' and ahbsi.haddr(6 downto 2) < "10010" and ahbsi.htrans = "11" else	-- rest read
 			(others => '0');
   ram_we1 <= '1' when (wr_valid = '1' and addr_wr(6 downto 2) < "11011") else '0';
   ram_di1 <= ahbsi.hwdata;
   --ahbso.hrdata <= ram_do1;
   
-  ram_addr2 <= (others => '0');
+  ram_addr2 <= ahbsi.haddr(6 downto 2) + '1' + ahbsi.haddr(6 downto 3) when ahbsi.haddr(6 downto 2) < "10010" else
+				(others => '0');
   ram_we2 <= '0';
   ram_di2 <= (others => '0');
+  
+	process (clk, rst)
+	begin
+		if rst = '0' then
+			next_addr <= (others => '0');
+		elsif rising_edge(clk) then
+			if (ahbsi.hsel(ahbndx) and not ahbsi.hwrite)= '1' then
+				if ahbsi.htrans = "10" then
+					next_addr <= ahbsi.haddr + "100";
+				elsif ahbsi.htrans = "11" and ahbsi.haddr(6 downto 2) < "10010" then -- haddr <= 0x44
+					next_addr <= next_addr + "100";
+				end if;
+			else
+				next_addr <= (others => '0');
+			end if;
+		end if;
+	end process;
 
 	write_process : process (clk, rst)
 	begin
@@ -179,6 +199,7 @@ begin
 			else
 				reading <= '0';
 				ahbso.hrdata <= (others => '0');
+				next_rdata <= (others => '0');
 			end if;
 			if reading = '1' then
 				-- if mode = "00" then
@@ -191,6 +212,7 @@ begin
 					-- ahbso.hrdata <= (others => '0');
 				-- end if;
 				ahbso.hrdata <= ram_do1;
+				--next_rdata <= ram_do2;
 				-- if no next request
 			end if;
 		end if;
