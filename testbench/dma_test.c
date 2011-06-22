@@ -15,8 +15,20 @@ volatile long *mcomp_data  = (long *) 0xb0000000;
 //volatile long *mcomp_r  = (long *) 0xb0000080;
 
 int stride = 32;
-/* h
-	
+/*	
+	source, h(r=1)
+	0,  1,  2,  3,  4,  5,  6,  7,
+	0,  9,  A,  B,  C,  D,  E,  F,
+	0, 11, 12, 13, 14, 15, 16, 17, 
+	...
+	39, 3A, 3B, 3C, 3D, 3E, 3F, 40
+
+	v(r=1), hv(r=2)
+	0,  5,  6,  7,  8,  9,  A,  B,
+	0,  D,  E,  F, 10, 11, 12, 13,
+	0, 15, 16, 17, 18, 19, 1A, 1B,
+	...
+	0, 3D, 3E, 3F, 40, 41, 42, 43
 */
 unsigned char block1[32*9] = {0,1,2,3,4,5,6,7,8,9,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 							0,9,10,11,12,13,14,15,16,17,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -39,7 +51,7 @@ main(int argc, char **argv)
 	*dma_src_width = 9;  
 	//*dma_dst_stride = 8;
 	*dma_dst_width = 8;  
-	*dma_r = (3 << 30) | 1;
+	*dma_r = (0 << 30) | 1;
 	*dma_other = (1 << 20) | (2 << 18) | (2 << 16) | ( 2 );
 	
 	while((*dma_other) >> 20);
@@ -53,6 +65,27 @@ main(int argc, char **argv)
 	
 	while((*dma_other) >> 20);
 
-	printf("%#x %#x %#x~%#x %#x\n%#x %#x %#x~%#x %#x\n", block2[1], block2[2], block2[3], block2[8], block2[9], block2[18], block2[19], block2[20], block2[25], block2[26]);
+	printf("h: %#x %#x %#x~%#x %#x\n%#x %#x %#x~%#x %#x\n", block2[0], block2[1], block2[2], block2[6], block2[7], block2[stride], block2[stride+1], block2[stride+2], block2[stride+6], block2[stride+7]);
 
+	*dma_srcaddr = &(block1[0]);
+	*dma_dstaddr = mcomp_data;
+	*dma_src_stride = stride;
+	*dma_src_width = 9;  
+	*dma_dst_stride = 0;
+	*dma_dst_width = 8;  
+	*dma_r = (1 << 30) | 1;
+	*dma_other = (1 << 20) | (2 << 18) | (2 << 16) | ( 2 );
+	
+	while((*dma_other) >> 20);
+
+	*dma_srcaddr = mcomp_data;
+	*dma_dstaddr = &(block2[0]);
+	*dma_dst_stride = stride;
+	*dma_src_stride = 0;
+	*dma_src_width = 8;  
+	*dma_other = (0x3 << 20) | (2 << 18) | (2 << 16) | ( 2 );
+	
+	while((*dma_other) >> 20);
+
+	printf("v: %#x %#x %#x~%#x %#x\n%#x %#x %#x~%#x %#x\n", block2[0], block2[1], block2[2], block2[6], block2[7], block2[stride], block2[stride+1], block2[stride+2], block2[stride+6], block2[stride+7]);
 }

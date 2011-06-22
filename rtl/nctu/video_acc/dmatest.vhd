@@ -218,6 +218,20 @@ begin
 					v.srcaddr := r.srcaddr + r.src_stride(9 downto 0);
 				end if;
 				
+				if need_split_burst and r.beat > 0 then
+					-- pause transfer
+					v.inhibit := '1';
+					burst := '0'; 
+				end if;
+			
+				if dmao.OKAY = '1' then
+					if need_split_burst and r.beat < 4 then	
+						v.beat := r.beat + 1;
+					else
+						v.beat := 0;
+					end if;
+				end if;
+				
 				if dmao.READY = '1' then
 					--v.data(r.cnt) := dmao.rdata;
 					if trans_size=4 then		-- read 4 byte
@@ -237,8 +251,13 @@ begin
 						v.dstate := writec;
 						v.cnt := 0; 
 						v.inhibit := '1';
+						burst := '0';
 						address := r.dstaddr; 
 						size := r.dstinc;
+					elsif r.src_mcomp = '1' and r.cnt >= 13 then
+						v.inhibit := '1';
+						burst := '0';
+						v.cnt := r.cnt + 1;
 					else
 						v.cnt := r.cnt + 1; 
 					end if;
@@ -253,8 +272,22 @@ begin
 				need_split_burst := (r.dst_stride /= (31 downto 0 =>'0'));
 				
 				-- set new address of new burst
-				if r.beat = 3 then
+				if r.beat = 2 then
 					v.dstaddr := r.dstaddr + r.dst_stride(9 downto 0);
+				end if;
+				
+				if need_split_burst and v.beat > 0 then
+					-- pause transfer
+					v.inhibit := '1';
+					burst := '0'; 
+				end if;
+				
+				if dmao.OKAY = '1' then
+					if need_split_burst and r.beat < 3 then	
+						v.beat := r.beat + 1;
+					else
+						v.beat := 0;
+					end if;
 				end if;
 				
 				if r.src_mcomp = '0' then
@@ -293,18 +326,8 @@ begin
 				end if;
 			end if;
 			
-			if need_split_burst and r.beat > 0 then
-				-- pause transfer
-				v.inhibit := '1';
-				burst := '0'; 
-			end if;
-			if dmao.OKAY = '1' then
-				if need_split_burst and r.beat < 4 then	
-					v.beat := r.beat + 1;
-				else
-					v.beat := 0;
-				end if;
-			end if;
+			
+			
 		end if;
 
 		
@@ -450,7 +473,8 @@ begin
 			v.write_valid := '0';
 			v.rfactor := (others=>'0');
 			v.mcomp_mode := (others=>'0');
-			v.beat := 0;
+			v.beat := 0;	
+			dmai.LOCK <= '0';
 		end if;
 		
 		

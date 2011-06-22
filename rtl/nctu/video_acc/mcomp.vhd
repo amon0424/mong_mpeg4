@@ -146,7 +146,8 @@ begin
   ram_di1 <= ahbsi.hwdata;
   --ahbso.hrdata <= ram_do1;
   
-  ram_addr2 <= ahbsi.haddr(6 downto 2) + '1' + ahbsi.haddr(6 downto 3) when ahbsi.haddr(6 downto 2) < "10010" else
+  ram_addr2 <=  ram_addr1 + 1 when mode = "00" else
+				ram_addr1 + 3 when mode = "01" else
 				(others => '0');
   ram_we2 <= '0';
   ram_di2 <= (others => '0');
@@ -159,7 +160,7 @@ begin
 			if (ahbsi.hsel(ahbndx) and not ahbsi.hwrite)= '1' then
 				if ahbsi.htrans = "10" then
 					next_addr <= ahbsi.haddr + "100";
-				elsif ahbsi.htrans = "11" and ahbsi.haddr(6 downto 2) < "10010" then -- haddr <= 0x44
+				elsif ahbsi.htrans = "11" and next_addr(6 downto 2) < "10001" then -- haddr < 0x44
 					next_addr <= next_addr + "100";
 				end if;
 			else
@@ -202,18 +203,30 @@ begin
 				next_rdata <= (others => '0');
 			end if;
 			if reading = '1' then
-				-- if mode = "00" then
-					-- --shift := reg_a + reg_b + 1 - reg_r;
-					-- --ahbso.hrdata <= ('0' & shift(31 downto 1));
-				-- elsif mode = "01" then
-					-- --shift := reg_a + reg_b + reg_c + reg_d + 2 - reg_r;
-					-- --ahbso.hrdata <= ("00" & shift(31 downto 2));
-				-- else
-					-- ahbso.hrdata <= (others => '0');
-				-- end if;
-				ahbso.hrdata <= ram_do1;
-				--next_rdata <= ram_do2;
-				-- if no next request
+				if mode = "00" then
+					-- if mode = "00" then
+						-- --shift := reg_a + reg_b + 1 - reg_r;
+						-- --ahbso.hrdata <= ('0' & shift(31 downto 1));
+					-- elsif mode = "01" then
+						-- --shift := reg_a + reg_b + reg_c + reg_d + 2 - reg_r;
+						-- --ahbso.hrdata <= ("00" & shift(31 downto 2));
+					-- else
+						-- ahbso.hrdata <= (others => '0');
+					-- end if;
+					for i in 1 to 3 loop
+						shift := ram_do1(i*8+7 downto i*8) + ram_do1((i-1)*8+7 downto (i-1)*8) + 1 - reg_r;
+						ahbso.hrdata(i*8+7 downto i*8) <= '0' & shift(7 downto 1);
+					end loop;
+					shift := ram_do1(7 downto 0) + ram_do2(31 downto 24) + 1 - reg_r;
+					ahbso.hrdata(7 downto 0) <= '0' & shift(7 downto 1);
+					--next_rdata <= ram_do2;
+					-- if no next request
+				elsif mode = "01" then
+					for i in 0 to 3 loop
+						shift := ram_do1(i*8+7 downto i*8) + ram_do2(i*8+7 downto i*8) + 1 - reg_r;
+						ahbso.hrdata(i*8+7 downto i*8) <= '0' & shift(7 downto 1);
+					end loop;
+				end if;
 			end if;
 		end if;
 	end process;
