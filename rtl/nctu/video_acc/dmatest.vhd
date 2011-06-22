@@ -276,18 +276,18 @@ begin
 					v.dstaddr := r.dstaddr + r.dst_stride(9 downto 0);
 				end if;
 				
-				if need_split_burst and v.beat > 0 then
-					-- pause transfer
-					v.inhibit := '1';
-					burst := '0'; 
-				end if;
-				
 				if dmao.OKAY = '1' then
 					if need_split_burst and r.beat < 3 then	
 						v.beat := r.beat + 1;
 					else
 						v.beat := 0;
 					end if;
+				end if;
+				
+				if need_split_burst and (v.beat > 0 or r.beat > 0) then
+					-- pause transfer
+					v.inhibit := '1';
+					burst := '0'; 
 				end if;
 				
 				if r.src_mcomp = '0' then
@@ -314,6 +314,7 @@ begin
 							v.enable := start; 
 							irq := start;
 						end if;
+						
 					else 
 						v.cnt := r.cnt + 1; 
 					end if;

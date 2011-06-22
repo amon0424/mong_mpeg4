@@ -146,8 +146,8 @@ begin
   ram_di1 <= ahbsi.hwdata;
   --ahbso.hrdata <= ram_do1;
   
-  ram_addr2 <=  ram_addr1 + 1 when mode = "00" else
-				ram_addr1 + 3 when mode = "01" else
+  ram_addr2 <=  ram_addr1 + 1 when (ahbsi.hsel(ahbndx) and not ahbsi.hwrite) = '1' and mode = "00" else
+				ram_addr1 + 3 when (ahbsi.hsel(ahbndx) and not ahbsi.hwrite) = '1' and mode = "01" else
 				(others => '0');
   ram_we2 <= '0';
   ram_di2 <= (others => '0');
@@ -160,8 +160,11 @@ begin
 			if (ahbsi.hsel(ahbndx) and not ahbsi.hwrite)= '1' then
 				if ahbsi.htrans = "10" then
 					next_addr <= ahbsi.haddr + "100";
-				elsif ahbsi.htrans = "11" and next_addr(6 downto 2) < "10001" then -- haddr < 0x44
-					next_addr <= next_addr + "100";
+				elsif ahbsi.htrans = "11"then 
+					if	--(next_addr(6 downto 2) < "10001" and mode = "00") 	OR
+						next_addr(6 downto 2) < "01111" then -- haddr < 0x44
+						next_addr <= next_addr + "100";
+					end if;
 				end if;
 			else
 				next_addr <= (others => '0');
