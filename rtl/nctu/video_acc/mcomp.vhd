@@ -52,16 +52,24 @@ constant hconfig : ahb_config_type := (
   others => X"00000000"
 );
 
-signal reg_a : std_logic_vector(31 downto 0);  -- pixel value 1
-signal reg_b : std_logic_vector(31 downto 0);  -- pixel value 2
-signal reg_c : std_logic_vector(31 downto 0);  -- pixel value 3
-signal reg_d : std_logic_vector(31 downto 0);  -- pixel value 4
+
 signal reg_r : std_logic_vector(31 downto 0);  -- rounding value
 signal wr_valid : std_logic; -- is the logic selected by a master
 signal addr_wr : std_logic_vector(31 downto 0);
 signal mode : std_logic_vector(1 downto 0);
 signal read_value : std_logic_vector(31 downto 0); 
 signal reading : std_logic;
+
+signal reg_a : std_logic_vector(31 downto 0);  -- pixel value 1
+signal reg_b : std_logic_vector(31 downto 0);  -- pixel value 2
+signal reg_c : std_logic_vector(31 downto 0);  -- pixel value 3
+signal reg_d : std_logic_vector(31 downto 0);  -- pixel value 4
+signal hv_flag : std_logic;
+signal hv_counter : std_logic_vector(3 downto 0);
+signal hv_tmp : std_logic_vector(31 downto 0);
+signal hv_start : std_logic;
+signal hv_request : std_logic;
+signal last_ram_addr1, last_ram_addr2: std_logic_vector(4 downto 0);
 -----------------------------------------------------------------
 -- BRAM
 -----------------------------------------------------------------
@@ -75,6 +83,7 @@ signal ram_do1 : std_logic_vector(31 downto 0);
 signal ram_do2 : std_logic_vector(31 downto 0);
 signal next_rdata : std_logic_vector(31 downto 0);
 signal next_addr : std_logic_vector(31 downto 0);
+
 begin
   ahbso.hresp   <= "00"; 
   ahbso.hsplit  <= (others => '0'); 
@@ -115,7 +124,7 @@ begin
 					else
 						ahbso.hready <= '1'; 
 					end if;
-				elsif(reading = '1')then
+				elsif(reading = '1' and ( mode(1) = '0' or hv_start = '1' ))then
 					ahbso.hready <= '1'; 
 				end if;
 			end if;
@@ -138,16 +147,24 @@ begin
       end if;
   end process;
   
-  ram_addr1 <= addr_wr(6 downto 2) when (wr_valid = '1' and addr_wr(6 downto 2) < "11011") else 			-- write
-			ahbsi.haddr(6 downto 2) + ahbsi.haddr(6 downto 3) when ahbsi.hwrite = '0' and ahbsi.haddr(6 downto 2) < "10010" and ahbsi.htrans = "10" else	-- 1st read
-			next_addr(6 downto 2) + next_addr(6 downto 3) when ahbsi.hwrite = '0' and ahbsi.haddr(6 downto 2) < "10010" and ahbsi.htrans = "11" else	-- rest read
-			(others => '0');
+  ram_addr1 <=  addr_wr(6 downto 2) when (wr_valid = '1' and addr_wr(6 downto 2) < "11011") else 			-- write
+				ahbsi.haddr(6 downto 2) + ahbsi.haddr(6 downto 3) 
+					when ahbsi.hwrite = '0' and ahbsi.haddr(6 downto 2) < "10010" and ahbsi.htrans = "10" else	-- 1st read
+				next_addr(6 downto 2) + next_addr(6 downto 3) 
+					when mode(1) = '0' and ahbsi.hwrite = '0' and ahbsi.haddr(6 downto 2) < "10010" and ahbsi.htrans = "11" else	-- rest read
+				last_ram_addr1 + 2 when (hv_start and mode(1)) = '1' and hv_flag = '0' and ahbsi.htrans = "11" else
+				last_ram_addr1 + 1 when (hv_start and  mode(1)) = '1' and hv_flag = '1' and ahbsi.htrans = "11" else
+				last_ram_addr1 + 3 when hv_request = '1' else
+				(others => '0');
   ram_we1 <= '1' when (wr_valid = '1' and addr_wr(6 downto 2) < "11011") else '0';
   ram_di1 <= ahbsi.hwdata;
   --ahbso.hrdata <= ram_do1;
   
-  ram_addr2 <=  ram_addr1 + 1 when (ahbsi.hsel(ahbndx) and not ahbsi.hwrite) = '1' and mode = "00" else
+  ram_addr2 <=  ram_addr1 + 1 when (ahbsi.hsel(ahbndx) and not ahbsi.hwrite) = '1' and mode(0) = '0' else
 				ram_addr1 + 3 when (ahbsi.hsel(ahbndx) and not ahbsi.hwrite) = '1' and mode = "01" else
+				last_ram_addr2 - 2 when (hv_start and mode(1)) = '1' and hv_flag = '0' and ahbsi.htrans = "11" else
+				last_ram_addr2 + 5 when (hv_start and mode(1)) = '1' and hv_flag = '1' and ahbsi.htrans = "11" else
+				last_ram_addr2 + 3 when hv_request = '1' else
 				(others => '0');
   ram_we2 <= '0';
   ram_di2 <= (others => '0');
@@ -157,6 +174,9 @@ begin
 		if rst = '0' then
 			next_addr <= (others => '0');
 		elsif rising_edge(clk) then
+			last_ram_addr1 <= ram_addr1;
+			last_ram_addr2 <= ram_addr2;
+			
 			if (ahbsi.hsel(ahbndx) and not ahbsi.hwrite)= '1' then
 				if ahbsi.htrans = "10" then
 					next_addr <= ahbsi.haddr + "100";
@@ -180,6 +200,7 @@ begin
 			reg_c <= (others => '0');
 			reg_d <= (others => '0');
 			reg_r <= (others => '0');
+			mode <= "00";
 		elsif rising_edge(clk) then
 			if wr_valid = '1' then
 				if addr_wr(6 downto 2) = "11011" then -- 27, 0x6C
@@ -190,9 +211,82 @@ begin
 			end if;
 		end if;
 	end process;
-
+	
+	hv_control: process (clk, rst)
+	begin
+		if rst = '0' then
+			hv_counter <= (others => '0');
+			hv_flag <= '0';
+			hv_start <= '0';
+			hv_request <= '0';
+		elsif rising_edge(clk) then
+			if(ahbsi.hsel(ahbndx) = '1' and ahbsi.hwrite = '0' and mode(1) = '1')then
+				hv_request <= '1';
+			end if;
+			if( mode(1) = '1' and reading = '1' and hv_counter < "1111")then
+				hv_start <= '1';
+			--else
+			--	hv_start <= '0';
+			--	hv_request <= '0';
+			end if;
+			
+			if(hv_counter = "1111")then
+				hv_start <= '0';
+				hv_request <= '0';
+			end if;
+			
+			if hv_start = '1' and hv_counter < "1111" then
+				hv_counter <= hv_counter + 1;
+			else
+				hv_counter <= (others => '0');
+			end if;
+			
+			if hv_start = '1' then
+				hv_flag <= not hv_flag;
+			else
+				hv_flag <= '0';
+			end if;
+		end if;
+	end process;
+	
+	hv_reg_control: process (clk, rst)
+	begin
+		if rst = '0' then
+			reg_a <= (others => '0');
+			reg_b <= (others => '0');
+			reg_c <= (others => '0');
+			reg_d <= (others => '0');
+			hv_tmp <= (others => '0');
+		elsif rising_edge(clk) then
+			if(hv_start = '0')then
+				hv_tmp <= ram_do1;
+			else
+				hv_tmp <= reg_a;
+			end if;
+			
+			reg_b <= hv_tmp;
+			reg_a <= ram_do1;
+			
+			case  hv_counter(1 downto 0) is
+			when "00" =>
+				reg_d <= ram_do2;
+			when "01" =>
+				reg_b <= ram_do2;
+			when "10" =>
+				reg_c <= ram_do2;
+			when "11" =>
+				reg_b <= ram_do2;
+			when others => null;
+			end case;
+		end if;
+	end process;
+	
 	read_process : process (clk, rst)
 	variable shift : std_logic_vector(31 downto 0);
+	variable hv_a : std_logic_vector(31 downto 0);  -- pixel value 1
+	variable hv_b : std_logic_vector(31 downto 0);  -- pixel value 2
+	variable hv_right : std_logic_vector(31 downto 0);
+	variable hv_right_bottom : std_logic_vector(31 downto 0);
 	begin
 		if rst = '0' then
 			read_value <= (others => '0');
@@ -229,6 +323,43 @@ begin
 						shift := ram_do1(i*8+7 downto i*8) + ram_do2(i*8+7 downto i*8) + 1 - reg_r;
 						ahbso.hrdata(i*8+7 downto i*8) <= '0' & shift(7 downto 1);
 					end loop;
+				elsif mode = "10" then
+					hv_a := ram_do1;
+					hv_b := ram_do2;
+					case hv_counter(1 downto 0) is
+					when "00" =>
+						hv_right := reg_c;
+						hv_right_bottom := ram_do2;
+						hv_a := hv_tmp                                                                                                        ;
+						hv_b := ram_do1;
+					when "01" =>
+						hv_right := ram_do2;
+						hv_right_bottom := ram_do1;
+						hv_a := reg_c;
+						hv_b := reg_d;
+					when "10" =>
+						hv_right := reg_d;
+						hv_right_bottom := ram_do2;
+						hv_a := hv_tmp;
+						hv_b := ram_do1;
+					when "11" =>
+						hv_right := ram_do2;
+						hv_right_bottom := ram_do1;
+						hv_a := reg_d;
+						hv_b := reg_c;
+					when others => null;
+					end case;
+					
+					for i in 1 to 3 loop
+						shift := hv_a(i*8+7 downto i*8) + hv_right((i-1)*8+7 downto (i-1)*8) + 
+								 hv_b(i*8+7 downto i*8) + hv_right_bottom(i*8+7 downto i*8) + 
+								 2 - reg_r;
+						ahbso.hrdata(i*8+7 downto i*8) <= "00" & shift(7 downto 2);
+					end loop;
+					shift := hv_a(7 downto 0) + hv_right(31 downto 24) + 
+							 hv_b(7 downto 0) + hv_right_bottom(31 downto 24) + 
+							 2 - reg_r;
+					ahbso.hrdata(7 downto 0) <= "00" & shift(7 downto 2);
 				end if;
 			end if;
 		end if;

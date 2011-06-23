@@ -57,7 +57,7 @@ architecture rtl of dmatest is
 
 
 constant hconfig : ahb_config_type := (
-  0      => ahb_device_reg ( VENDOR_NCTU, NCTU_MCOMP, 0, verid, irq_no),
+  0      => ahb_device_reg ( VENDOR_NCTU, NCTU_DMA, 0, verid, irq_no),
   4      => ahb_membar(ahbaddr, '1', '0', addrmsk),
   others => X"00000000"
 );
@@ -110,7 +110,12 @@ signal dmao : dma_out_type;
 --signal width : std_logic_vector(3 downto 0);			-- 0~9
 type Data_Vector  is array (Natural range <> ) of Std_Logic_Vector(32-1 downto 0);
 begin
-
+	ahbso.hresp   <= "00"; 
+	ahbso.hsplit  <= (others => '0');
+	ahbso.hirq    <= (others => '0');
+	ahbso.hcache  <= '0';
+	ahbso.hconfig <= hconfig;
+	ahbso.hindex  <= slvidx;
 	
 	---------------------ahb dma----------------------
 	comb : process(ahbsi, dmao, rst, r)
@@ -151,6 +156,11 @@ begin
 		start := r.enable;
 		burst := '0'; 
 		v.beat := 0;
+		
+		-- read control
+		if (ahbsi.hsel(slvidx) and ahbsi.htrans(1)) = '1' then
+			ahbso.hready  <= ready;
+		end if;
 		
 		if v.src_mcomp = '0' then	-- read from ram, write to mcomp
 			read_length := dbuf;
@@ -503,9 +513,8 @@ begin
 		else
 			dmai.Data <= (others=>'0');
 		end if;
-		ahbso.hirq    <= (others =>'0');
-		ahbso.hindex  <= slvidx;
-		ahbso.hconfig <= hconfig;
+
+		
 	end process;
 	
 	mst : DMA2AHB generic map(

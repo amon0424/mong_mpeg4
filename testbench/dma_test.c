@@ -54,6 +54,25 @@ main(int argc, char **argv)
 {
 	int idx, row;
 
+	// halfpel8x8_hv
+	*dma_srcaddr = &(block1[0]);
+	*dma_dstaddr = mcomp_data;
+	*dma_src_stride = stride;
+	*dma_src_width = 9;  
+	//*dma_dst_stride = 8;
+	*dma_dst_width = 8;  
+	*dma_r = (2 << 30) | 1;
+	*dma_other = (1 << 20) | (2 << 18) | (2 << 16) | ( 2 );
+	
+	while((*dma_other) >> 20);
+
+	*dma_srcaddr = mcomp_data;
+	*dma_dstaddr = &(block2[0]);
+	*dma_dst_stride = stride;
+	*dma_src_stride = 0;
+	*dma_src_width = 8;  
+	*dma_other = (0x3 << 20) | (2 << 18) | (2 << 16) | ( 2 );
+
 	// halfpel8x8_h
 	*dma_srcaddr = &(block1[0]);
 	*dma_dstaddr = mcomp_data;
@@ -67,7 +86,7 @@ main(int argc, char **argv)
 	while((*dma_other) >> 20);
 
 	*dma_srcaddr = mcomp_data;
-	*dma_dstaddr = &(block2[0]);
+	*dma_dstaddr = &(block3[0]);
 	*dma_dst_stride = stride;
 	*dma_src_stride = 0;
 	*dma_src_width = 8;  
@@ -90,7 +109,7 @@ main(int argc, char **argv)
 	while((*dma_other) >> 20);
 
 	*dma_srcaddr = mcomp_data;
-	*dma_dstaddr = &(block3[0]);
+	*dma_dstaddr = &(block4[0]);
 	*dma_dst_stride = stride;
 	*dma_src_stride = 0;
 	*dma_src_width = 8;  
@@ -99,7 +118,7 @@ main(int argc, char **argv)
 	while((*dma_other) >> 20);
 
 	idx = 0;
-	printf("Results of halfpel8x8_h = [\n");
+	printf("Results of halfpel8x8_hv = [\n");
     for (row = 0; row < 8; row++)
     {
         printf("%#x, %#x, %#x, %#x, %#x, %#x, %#x, %#x\n", block2[idx], block2[idx+1], block2[idx+2], block2[idx+3], block2[idx+4], block2[idx+5], block2[idx+6], block2[idx+7] );
@@ -108,7 +127,7 @@ main(int argc, char **argv)
     printf("]\n");
 
 	idx = 0;
-	printf("Results of halfpel8x8_v = [\n");
+	printf("Results of halfpel8x8_h = [\n");
     for (row = 0; row < 8; row++)
     {
         printf("%#x, %#x, %#x, %#x, %#x, %#x, %#x, %#x\n", block3[idx], block3[idx+1], block3[idx+2], block3[idx+3], block3[idx+4], block3[idx+5], block3[idx+6], block3[idx+7] );
