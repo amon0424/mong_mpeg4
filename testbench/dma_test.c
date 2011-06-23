@@ -46,8 +46,9 @@ unsigned char block1[32*9] = {0,1,2,3,4,5,6,7,8,9,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 							0,49,50,51,52,53,54,55,56,57,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 							0,57,58,59,60,61,62,63,64,65,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 							0,65,66,67,68,69,70,71,72,73,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-unsigned char block2[32*9] = {0};
-unsigned char block3[32*9] = {0};
+unsigned char block2[32*9] = {0};	// h
+unsigned char block3[32*9] = {0};	// v
+unsigned char block4[32*9] = {0};	// hv
 int
 main(int argc, char **argv)
 {
@@ -101,7 +102,8 @@ main(int argc, char **argv)
 	printf("Results of halfpel8x8_h = [\n");
     for (row = 0; row < 8; row++)
     {
-        printf("%#x, %#x, %#x, %#x, %#x, %#x, %#x, %#x\n", block2[idx++], block2[idx++], block2[idx++], block2[idx++], block2[idx++], block2[idx++], block2[idx++], block2[idx++] );
+        printf("%#x, %#x, %#x, %#x, %#x, %#x, %#x, %#x\n", block2[idx], block2[idx+1], block2[idx+2], block2[idx+3], block2[idx+4], block2[idx+5], block2[idx+6], block2[idx+7] );
+		idx += stride;
     }
     printf("]\n");
 
@@ -109,7 +111,8 @@ main(int argc, char **argv)
 	printf("Results of halfpel8x8_v = [\n");
     for (row = 0; row < 8; row++)
     {
-        printf("%#x, %#x, %#x, %#x, %#x, %#x, %#x, %#x\n", block3[idx++], block3[idx++], block3[idx++], block3[idx++], block3[idx++], block3[idx++], block3[idx++], block3[idx++] );
+        printf("%#x, %#x, %#x, %#x, %#x, %#x, %#x, %#x\n", block3[idx], block3[idx+1], block3[idx+2], block3[idx+3], block3[idx+4], block3[idx+5], block3[idx+6], block3[idx+7] );
+		idx += stride;
     }
     printf("]\n");
 }

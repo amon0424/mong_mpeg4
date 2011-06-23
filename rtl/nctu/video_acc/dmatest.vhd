@@ -218,7 +218,10 @@ begin
 					v.srcaddr := r.srcaddr + r.src_stride(9 downto 0);
 				end if;
 				
-				if need_split_burst and r.beat > 0 then
+				if	need_split_burst and (r.beat > 0
+						--( r.src_mcomp = '1' and r.beat > 0 ) or	-- read from mcomp, pause request when r.beat >= 1
+						--( r.src_mcomp = '0' and r.beat > 1 )	-- read from ram, pause request when r.beat >= 2
+					)then
 					-- pause transfer
 					v.inhibit := '1';
 					burst := '0'; 
