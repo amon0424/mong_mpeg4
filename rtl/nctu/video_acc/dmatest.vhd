@@ -117,6 +117,17 @@ begin
 	ahbso.hconfig <= hconfig;
 	ahbso.hindex  <= slvidx;
 	
+	ready_ctrl : process (clk, rst)
+	begin
+		if rst = '0' then
+			ahbso.hready <= '1';
+		elsif rising_edge(clk ) then
+			if (ahbsi.hsel(slvidx) and ahbsi.htrans(1)) = '1' then
+				ahbso.hready <= '1';
+			end if;
+		end if;
+	end process;
+	
 	---------------------ahb dma----------------------
 	comb : process(ahbsi, dmao, rst, r)
 		variable v       : reg_type;
@@ -157,10 +168,7 @@ begin
 		burst := '0'; 
 		v.beat := 0;
 		
-		-- read control
-		if (ahbsi.hsel(slvidx) and ahbsi.htrans(1)) = '1' then
-			ahbso.hready  <= ready;
-		end if;
+		
 		
 		if v.src_mcomp = '0' then	-- read from ram, write to mcomp
 			read_length := dbuf;

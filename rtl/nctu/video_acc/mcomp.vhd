@@ -114,9 +114,9 @@ begin
 	begin
 		if rst = '0' then
 			ahbso.hready <= '1';
-			elsif rising_edge(clk ) then
+		elsif rising_edge(clk ) then
 			if ahbsi.hsel(ahbndx) = '1' then
-				if ahbsi.htrans = "11" and ahbsi.hwrite = '0' then
+				if ahbsi.htrans = "11" and ahbsi.hwrite = '0' and ( mode(1) = '0' or hv_start = '1' )then
 					ahbso.hready <= '1';
 				elsif (ahbsi.htrans(1)) = '1' then
 					if ahbsi.hwrite = '0' then 
@@ -124,7 +124,7 @@ begin
 					else
 						ahbso.hready <= '1'; 
 					end if;
-				elsif(reading = '1' and ( mode(1) = '0' or hv_start = '1' ))then
+				elsif reading = '1' then
 					ahbso.hready <= '1'; 
 				end if;
 			end if;
@@ -152,19 +152,20 @@ begin
 					when ahbsi.hwrite = '0' and ahbsi.haddr(6 downto 2) < "10010" and ahbsi.htrans = "10" else	-- 1st read
 				next_addr(6 downto 2) + next_addr(6 downto 3) 
 					when mode(1) = '0' and ahbsi.hwrite = '0' and ahbsi.haddr(6 downto 2) < "10010" and ahbsi.htrans = "11" else	-- rest read
-				last_ram_addr1 + 2 when (hv_start and mode(1)) = '1' and hv_flag = '0' and ahbsi.htrans = "11" else
-				last_ram_addr1 + 1 when (hv_start and  mode(1)) = '1' and hv_flag = '1' and ahbsi.htrans = "11" else
-				last_ram_addr1 + 3 when hv_request = '1' else
+				last_ram_addr1 + 3 when (hv_request and not hv_start) = '1' else
+				last_ram_addr1 + 2 when (hv_start and hv_request and mode(1)) = '1' and hv_flag = '0' and ahbsi.htrans = "11" else
+				last_ram_addr1 + 1 when (hv_start and hv_request and mode(1)) = '1' and hv_flag = '1' and ahbsi.htrans = "11" else
 				(others => '0');
   ram_we1 <= '1' when (wr_valid = '1' and addr_wr(6 downto 2) < "11011") else '0';
   ram_di1 <= ahbsi.hwdata;
   --ahbso.hrdata <= ram_do1;
   
-  ram_addr2 <=  ram_addr1 + 1 when (ahbsi.hsel(ahbndx) and not ahbsi.hwrite) = '1' and mode(0) = '0' else
+  ram_addr2 <=  ram_addr1 + 1 when (ahbsi.hsel(ahbndx) and not ahbsi.hwrite) = '1' and (mode = "00" or (mode="10" and ahbsi.htrans="10")) else
 				ram_addr1 + 3 when (ahbsi.hsel(ahbndx) and not ahbsi.hwrite) = '1' and mode = "01" else
+				last_ram_addr2 + 3 when (hv_request and not hv_start) = '1'else
 				last_ram_addr2 - 2 when (hv_start and mode(1)) = '1' and hv_flag = '0' and ahbsi.htrans = "11" else
-				last_ram_addr2 + 5 when (hv_start and mode(1)) = '1' and hv_flag = '1' and ahbsi.htrans = "11" else
-				last_ram_addr2 + 3 when hv_request = '1' else
+				last_ram_addr2 + 5 when (hv_start and mode(1)) = '1' and hv_flag = '1' and ahbsi.htrans = "11" and hv_counter < "1111" else
+				
 				(others => '0');
   ram_we2 <= '0';
   ram_di2 <= (others => '0');
@@ -195,10 +196,6 @@ begin
 	write_process : process (clk, rst)
 	begin
 		if rst = '0' then
-			reg_a <= (others => '0');
-			reg_b <= (others => '0');
-			reg_c <= (others => '0');
-			reg_d <= (others => '0');
 			reg_r <= (others => '0');
 			mode <= "00";
 		elsif rising_edge(clk) then
@@ -220,19 +217,22 @@ begin
 			hv_start <= '0';
 			hv_request <= '0';
 		elsif rising_edge(clk) then
-			if(ahbsi.hsel(ahbndx) = '1' and ahbsi.hwrite = '0' and mode(1) = '1')then
+			if(ahbsi.hsel(ahbndx) = '1' and ahbsi.hwrite = '0' and mode(1) = '1' and ahbsi.htrans = "10" )then
 				hv_request <= '1';
 			end if;
-			if( mode(1) = '1' and reading = '1' and hv_counter < "1111")then
+			if(hv_request = '1' and hv_counter < "1111")then
 				hv_start <= '1';
 			--else
 			--	hv_start <= '0';
 			--	hv_request <= '0';
 			end if;
 			
-			if(hv_counter = "1111")then
-				hv_start <= '0';
+			if(hv_counter = "1110")then
 				hv_request <= '0';
+			end if;
+			
+			if(hv_request = '0')then
+				hv_start <= '0';
 			end if;
 			
 			if hv_start = '1' and hv_counter < "1111" then
@@ -258,8 +258,9 @@ begin
 			reg_d <= (others => '0');
 			hv_tmp <= (others => '0');
 		elsif rising_edge(clk) then
-			if(hv_start = '0')then
+			if(hv_request and not hv_start) = '1'then
 				hv_tmp <= ram_do1;
+				reg_c <= ram_do2;
 			else
 				hv_tmp <= reg_a;
 			end if;
@@ -312,16 +313,16 @@ begin
 					-- end if;
 					for i in 1 to 3 loop
 						shift := ram_do1(i*8+7 downto i*8) + ram_do1((i-1)*8+7 downto (i-1)*8) + 1 - reg_r;
-						ahbso.hrdata(i*8+7 downto i*8) <= '0' & shift(7 downto 1);
+						ahbso.hrdata(i*8+7 downto i*8) <= shift(8 downto 1);
 					end loop;
 					shift := ram_do1(7 downto 0) + ram_do2(31 downto 24) + 1 - reg_r;
-					ahbso.hrdata(7 downto 0) <= '0' & shift(7 downto 1);
+					ahbso.hrdata(7 downto 0) <= shift(8 downto 1);
 					--next_rdata <= ram_do2;
 					-- if no next request
 				elsif mode = "01" then
 					for i in 0 to 3 loop
 						shift := ram_do1(i*8+7 downto i*8) + ram_do2(i*8+7 downto i*8) + 1 - reg_r;
-						ahbso.hrdata(i*8+7 downto i*8) <= '0' & shift(7 downto 1);
+						ahbso.hrdata(i*8+7 downto i*8) <= shift(8 downto 1);
 					end loop;
 				elsif mode = "10" then
 					hv_a := ram_do1;
@@ -329,6 +330,7 @@ begin
 					case hv_counter(1 downto 0) is
 					when "00" =>
 						hv_right := reg_c;
+						--hv_right := reg_d;
 						hv_right_bottom := ram_do2;
 						hv_a := hv_tmp                                                                                                        ;
 						hv_b := ram_do1;
@@ -351,15 +353,15 @@ begin
 					end case;
 					
 					for i in 1 to 3 loop
-						shift := hv_a(i*8+7 downto i*8) + hv_right((i-1)*8+7 downto (i-1)*8) + 
-								 hv_b(i*8+7 downto i*8) + hv_right_bottom(i*8+7 downto i*8) + 
+						shift := hv_a(i*8+7 downto i*8) + hv_a((i-1)*8+7 downto (i-1)*8) + 
+								 hv_b(i*8+7 downto i*8) + hv_b((i-1)*8+7 downto (i-1)*8) + 
 								 2 - reg_r;
-						ahbso.hrdata(i*8+7 downto i*8) <= "00" & shift(7 downto 2);
+						ahbso.hrdata(i*8+7 downto i*8) <= shift(9 downto 2);
 					end loop;
 					shift := hv_a(7 downto 0) + hv_right(31 downto 24) + 
 							 hv_b(7 downto 0) + hv_right_bottom(31 downto 24) + 
 							 2 - reg_r;
-					ahbso.hrdata(7 downto 0) <= "00" & shift(7 downto 2);
+					ahbso.hrdata(7 downto 0) <= shift(9 downto 2);
 				end if;
 			end if;
 		end if;
