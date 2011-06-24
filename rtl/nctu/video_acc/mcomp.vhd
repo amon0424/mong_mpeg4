@@ -308,16 +308,16 @@ begin
 						-- ahbso.hrdata <= (others => '0');
 					-- end if;
 					for i in 1 to 3 loop
-						shift := ( '0' & ram_do1(i*8+7 downto i*8)) + ram_do1((i-1)*8+7 downto (i-1)*8) + 1 - reg_r;
+						shift := ( "00" & ram_do1(i*8+7 downto i*8)) + ram_do1((i-1)*8+7 downto (i-1)*8) + 1 - reg_r;
 						ahbso.hrdata(i*8+7 downto i*8) <= shift(8 downto 1);
 					end loop;
-					shift := ('0' & ram_do1(7 downto 0)) + ram_do2(31 downto 24) + 1 - reg_r;
+					shift := ("00" & ram_do1(7 downto 0)) + ram_do2(31 downto 24) + 1 - reg_r;
 					ahbso.hrdata(7 downto 0) <= shift(8 downto 1);
 					--next_rdata <= ram_do2;
 					-- if no next request
 				elsif mode = "01" then
 					for i in 0 to 3 loop
-						shift := ('0' & ram_do1(i*8+7 downto i*8)) + ram_do2(i*8+7 downto i*8) + 1 - reg_r;
+						shift := ("00" & ram_do1(i*8+7 downto i*8)) + ram_do2(i*8+7 downto i*8) + 1 - reg_r;
 						ahbso.hrdata(i*8+7 downto i*8) <= shift(8 downto 1);
 					end loop;
 				end if;
@@ -350,12 +350,12 @@ begin
 				end case;
 				
 				for i in 1 to 3 loop
-					shift := ('0' & hv_a(i*8+7 downto i*8)) + hv_a((i-1)*8+7 downto (i-1)*8) + 
+					shift := ("00" & hv_a(i*8+7 downto i*8)) + hv_a((i-1)*8+7 downto (i-1)*8) + 
 							 hv_b(i*8+7 downto i*8) + hv_b((i-1)*8+7 downto (i-1)*8) + 
 							 2 - reg_r;
 					ahbso.hrdata(i*8+7 downto i*8) <= shift(9 downto 2);
 				end loop;
-				shift := ('0' & hv_a(7 downto 0)) + hv_right(31 downto 24) + 
+				shift := ("00" & hv_a(7 downto 0)) + hv_right(31 downto 24) + 
 						 hv_b(7 downto 0) + hv_right_bottom(31 downto 24) + 
 						 2 - reg_r;
 				ahbso.hrdata(7 downto 0) <= shift(9 downto 2);
