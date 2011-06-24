@@ -62,12 +62,15 @@ constant hconfig : ahb_config_type := (
   others => X"00000000"
 );
 
+constant mcomp_data : std_logic_vector := x"B0000000";
+
 -- for dma
 -- constant pconfig : apb_config_type := (
   -- 0 => ahb_device_reg ( VENDOR_GAISLER, GAISLER_AHBDMA, 0, 0, pirq),
   -- 1 => apb_iobar(paddr, pmask));
 
-type dma_state_type is (readc, writec, write_r, write_mode);
+type dma_state_type is (idle, readc, writec, write_r, write_mode);
+type dma_stage_type is (stage1, idlestage, stage2);
 
 subtype word32 is std_logic_vector(31 downto 0);
 type datavec is array (0 to dbuf-1) of word32;
@@ -77,12 +80,17 @@ type reg_type is record
   srcinc  : std_logic_vector(1 downto 0);
   dstaddr : std_logic_vector(31 downto 0);
   dstinc  : std_logic_vector(1 downto 0);
+  
+  idstaddr : std_logic_vector(31 downto 0);
+  idstinc  : std_logic_vector(1 downto 0);
+  
   len     : std_logic_vector(15 downto 0);
   enable  : std_logic;
   write   : std_logic;
   inhibit : std_logic;
   status  : std_logic_vector(1 downto 0);
   dstate  : dma_state_type;
+  stage	  : dma_stage_type;
   data    : datavec;
   cnt     : integer range 0 to dbuf-1; --additional one for r, one for action
   readCountInRow : integer range 0 to 16;
@@ -163,12 +171,11 @@ begin
 		mexc := '0';
 		size := r.srcinc; 
 		irq := '0'; 
-		v.inhibit := '0';
+		
 		start := r.enable;
+		v.inhibit := '0';
 		burst := '0'; 
 		v.beat := 0;
-		
-		
 		
 		if v.src_mcomp = '0' then	-- read from ram, write to mcomp
 			read_length := dbuf;
@@ -236,21 +243,19 @@ begin
 					v.srcaddr := r.srcaddr + r.src_stride(9 downto 0);
 				end if;
 				
-				if	need_split_burst and (r.beat > 0
-						--( r.src_mcomp = '1' and r.beat > 0 ) or	-- read from mcomp, pause request when r.beat >= 1
-						--( r.src_mcomp = '0' and r.beat > 1 )	-- read from ram, pause request when r.beat >= 2
-					)then
-					-- pause transfer
-					v.inhibit := '1';
-					burst := '0'; 
-				end if;
-			
 				if dmao.OKAY = '1' then
 					if need_split_burst and r.beat < 4 then	
 						v.beat := r.beat + 1;
 					else
 						v.beat := 0;
 					end if;
+				end if;
+				if	need_split_burst and
+					((v.beat = 2 and ahbmi.hready = '1') or 	-- 3rd address sent
+					(v.beat > 2 or dmao.Ready = '1'))  then	-- 3rd data 
+					-- pause transfer
+					v.inhibit := '1';
+					burst := '0'; 
 				end if;
 				
 				if dmao.READY = '1' then
@@ -267,7 +272,7 @@ begin
 					   --DataPart := (DataPart + 1) mod 4;
 					end if;
 					
-					if r.cnt = read_length-1 then 
+					if r.cnt = read_length-1 then
 						v.write := '1'; 
 						v.dstate := writec;
 						v.cnt := 0; 
@@ -305,7 +310,9 @@ begin
 					end if;
 				end if;
 				
-				if need_split_burst and (v.beat > 0 or r.beat > 0) then
+				--if need_split_burst and (v.beat > 0 or r.beat > 0) then
+				if  (need_split_burst and (v.beat > 0 or r.beat > 0) and ahbmi.hready = '1') or
+					(r.src_mcomp = '0' and (r.dstate = write_r or r.dstate = write_mode))then
 					-- pause transfer
 					v.inhibit := '1';
 					burst := '0'; 
@@ -315,9 +322,10 @@ begin
 					-- write to mcomp, we need to write rfactor
 					if r.dstate = write_r then 
 						v.dstate  := write_mode;
+						--start := '0';
 					elsif r.dstate = write_mode then
 						v.dstate := writec;
-						start := '0';
+						--start := '0';
 					elsif r.cnt = write_length-1 then 
 						v.dstate  := write_r;
 					end if;
@@ -331,11 +339,22 @@ begin
 							v.cnt := 0;
 							v.write := '0'; 
 							v.dstate := readc;
-							v.len := newlen; 
-							v.enable := start; 
-							irq := start;
+							if r.stage = stage1 then
+								-- change to stage2, mcomp to dma
+								v.len := newlen; 
+								v.stage := idlestage;
+								v.srcaddr := mcomp_data;
+								v.dstaddr := r.idstaddr;
+								v.src_mcomp := '1';
+							elsif r.stage = stage2 then
+								v.dstate := idle;
+								v.stage := stage1;
+								v.enable := start; 
+								irq := start;
+							else
+								v.stage := stage2;
+							end if;
 						end if;
-						
 					else 
 						v.cnt := r.cnt + 1; 
 					end if;
@@ -347,9 +366,6 @@ begin
 					end if;
 				end if;
 			end if;
-			
-			
-			
 		end if;
 
 		
@@ -452,15 +468,23 @@ begin
 				when "0000" => -- 0x00
 					v.srcaddr := ahbsi.hwdata;
 				when "0001" => -- 0x04
-					v.dstaddr := ahbsi.hwdata;
+					v.idstaddr := ahbsi.hwdata;
 				when "0010" => -- 0x08
 					v.len := ahbsi.hwdata(15 downto 0);
 					v.srcinc := ahbsi.hwdata(17 downto 16);
 					v.dstinc := ahbsi.hwdata(19 downto 18);
 					v.enable := ahbsi.hwdata(20);
-					v.src_mcomp := ahbsi.hwdata(21);
+					if v.enable = '1' then
+						v.src_mcomp := '0';
+						v.dstate := readc;
+						v.stage := stage1;
+						v.dstaddr := mcomp_data;
+					end if;
 				when "0011" => -- 0x0C
-					v.src_stride := ahbsi.hwdata;
+					v.src_stride := (31 downto 12 => '0') & ahbsi.hwdata(31 downto 20);
+					v.src_width := ahbsi.hwdata(19 downto 16);
+					v.dst_stride := (31 downto 12 => '0') & ahbsi.hwdata(15 downto 4);
+					v.dst_width := ahbsi.hwdata(3 downto 0);
 				when "0100" => -- 0x10
 					v.src_width := ahbsi.hwdata(3 downto 0);
 				when "0101" => -- 0x14
@@ -475,7 +499,8 @@ begin
 		end if;
 
 		if rst = '0' then
-			v.dstate := readc; 
+			v.dstate := idle; 
+			v.stage := stage1;
 			v.enable := '0'; 
 			v.write := '0';
 			v.cnt  := 0;

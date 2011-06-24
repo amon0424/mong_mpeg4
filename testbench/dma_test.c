@@ -13,7 +13,7 @@ volatile long *dma_r  = (long *) 0xb030001C;
 
 volatile long *mcomp_data  = (long *) 0xb0000000;
 //volatile long *mcomp_r  = (long *) 0xb0000080;
-
+	
 int stride = 32;
 /*	
 	source, h(r=1)
@@ -64,42 +64,25 @@ main(int argc, char **argv)
 	// halfpel8x8_hv
 	*dma_srcaddr = &(block1[0]);
 	*dma_dstaddr = mcomp_data;
-	*dma_src_stride = stride;
-	*dma_src_width = 9;  
-	*dma_dst_stride = 0;
-	*dma_dst_width = 8;  
+	*dma_src_stride = (stride << 20) | (9 << 16) | (0 << 4) | 8;
+	//*dma_src_width = 9;  
+	//*dma_dst_stride = 0;
+	//*dma_dst_width = 8;  
 	*dma_r = (2 << 30) | 2;
 	*dma_other = (1 << 20) | (2 << 18) | (2 << 16) | ( 2 );
 	
 	while((*dma_other) >> 20);
 
-	*dma_srcaddr = mcomp_data;
-	*dma_dstaddr = &(block2[0]);
-	*dma_dst_stride = stride;
-	*dma_src_stride = 0;
-	*dma_src_width = 8;  
-	*dma_other = (0x3 << 20) | (2 << 18) | (2 << 16) | ( 2 );
-
-	while((*dma_other) >> 20);
-
 	// halfpel8x8_h
 	*dma_srcaddr = &(block1[0]);
 	*dma_dstaddr = mcomp_data;
-	*dma_src_stride = stride;
-	*dma_src_width = 9;  
-	*dma_dst_stride = 0;
-	*dma_dst_width = 8;  
+	*dma_src_stride = (stride << 20) | (9 << 16) | (0 << 4) | 8;
+	//*dma_src_stride = stride;
+	//*dma_src_width = 9;  
+	//*dma_dst_stride = 0;
+	//*dma_dst_width = 8;  
 	*dma_r = (0 << 30) | 1;
 	*dma_other = (1 << 20) | (2 << 18) | (2 << 16) | ( 2 );
-	
-	while((*dma_other) >> 20);
-
-	*dma_srcaddr = mcomp_data;
-	*dma_dstaddr = &(block3[0]);
-	*dma_dst_stride = stride;
-	*dma_src_stride = 0;
-	*dma_src_width = 8;  
-	*dma_other = (0x3 << 20) | (2 << 18) | (2 << 16) | ( 2 );
 	
 	while((*dma_other) >> 20);
 
@@ -108,21 +91,13 @@ main(int argc, char **argv)
 	// halfpel8x8_v
 	*dma_srcaddr = &(block1[0]);
 	*dma_dstaddr = mcomp_data;
-	*dma_src_stride = stride;
-	*dma_src_width = 9;  
-	*dma_dst_stride = 0;
-	*dma_dst_width = 8;  
+	*dma_src_stride = (stride << 20) | (9 << 16) | (0 << 4) | 8;
+	//*dma_src_stride = stride;
+	//*dma_src_width = 9;  
+	//*dma_dst_stride = 0;
+	//*dma_dst_width = 8;  
 	*dma_r = (1 << 30) | 1;
 	*dma_other = (1 << 20) | (2 << 18) | (2 << 16) | ( 2 );
-	
-	while((*dma_other) >> 20);
-
-	*dma_srcaddr = mcomp_data;
-	*dma_dstaddr = &(block4[0]);
-	*dma_dst_stride = stride;
-	*dma_src_stride = 0;
-	*dma_src_width = 8;  
-	*dma_other = (0x3 << 20) | (2 << 18) | (2 << 16) | ( 2 );
 	
 	while((*dma_other) >> 20);
 

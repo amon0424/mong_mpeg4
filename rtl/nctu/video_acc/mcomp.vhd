@@ -124,9 +124,9 @@ begin
 					else
 						ahbso.hready <= '1'; 
 					end if;
-				elsif reading = '1' then
-					ahbso.hready <= '1'; 
-				end if;
+				end if;	
+			elsif reading = '1' then
+				ahbso.hready <= '1'; 
 			end if;
 		end if;
 	end process;
