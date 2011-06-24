@@ -13,10 +13,26 @@
 #include "metypes.h"
 #include "bilinear8x8.h"
 
+#define USE_HW_MC_FINAL_DMA 0
+#define USE_HW_MC_FINAL 1
 #define USE_HW_MC_LAB3_ORI 0
 #define USE_HW_MC 0
 
-#if USE_HW_MC_LAB3_ORI
+#if USE_HW_MC_FINAL_DMA
+volatile long *dma_srcaddr  = (long *) 0xb0300000;
+volatile long *dma_dstaddr  = (long *) 0xb0300004;
+volatile unsigned long *dma_other  = (long *) 0xb0300008;
+volatile long *dma_src_stride  = (long *) 0xb030000C;
+volatile long *dma_src_width  = (long *) 0xb0300010;
+volatile long *dma_dst_stride  = (long *) 0xb0300014;
+volatile long *dma_dst_width  = (long *) 0xb0300018;
+volatile long *dma_r  = (long *) 0xb030001C;
+volatile long *mcomp_data  = (long *) 0xb0000000;
+#elif USE_HW_MC_FINAL
+volatile int *reg_r  = (int *) 0xb000006c;
+volatile int *reg_mode = (int *) 0xb0000070;
+volatile long *mcomp_data  = (long *) 0xb0000000;
+#elif USE_HW_MC_LAB3_ORI
 volatile int *reg_a  = (int *) 0xb0000000;
 volatile int *reg_b  = (int *) 0xb0000004;
 volatile int *reg_c  = (int *) 0xb0000008;
@@ -37,7 +53,38 @@ halfpel8x8_h(uint8 * dst, uint8 * src, xint stride, xint rounding)
 	xint	i;
 
     idx = 0;
-#if USE_HW_MC_LAB3_ORI
+#if USE_HW_MC_FINAL
+	volatile int* ppixels = mcomp_data;
+	unsigned int val;
+
+	idx=0;
+	for (row = 0; row < (stride << 3); idx = (row += stride))
+	{
+		val=0;
+		val |= src[idx] << 24 | (src[idx+1] << 16) | (src[idx+2] << 8) | (src[idx+3]);
+		*(ppixels++) = val;
+
+		val=0;
+		val |= src[idx+4] << 24 | (src[idx+5] << 16) | (src[idx+6] << 8) | (src[idx+7]);
+		*(ppixels++) = val;
+
+		val=src[idx+8] << 24;
+		*(ppixels++) = val;
+	}
+
+	*reg_r = rounding;
+	*reg_mode = 0;
+
+	// read
+	ppixels = mcomp_data;
+	idx=0;
+	for (row = 0; row < (stride << 3); idx = (row += stride))
+	{
+		*((int*)(dst+idx)) = *(ppixels++);
+		*((int*)(dst+idx+4)) = *(ppixels++);
+	}
+
+#elif USE_HW_MC_LAB3_ORI
     for (row = 0; row < (stride << 3); idx = (row += stride))
     {
         for (col = 0; col < 8; col++, idx++)
@@ -116,7 +163,36 @@ halfpel8x8_v(uint8 * dst, uint8 * src, xint stride, xint rounding)
 
     idx = 0;
 
-#if USE_HW_MC
+#if USE_HW_MC_FINAL
+	volatile int* ppixels = mcomp_data;
+	unsigned int val;
+	
+	idx=0;
+	for (row = 0; row < (stride << 3) + stride; idx = (row += stride))
+	{
+		val=0;
+		val |= src[idx] << 24 | (src[idx+1] << 16) | (src[idx+2] << 8) | (src[idx+3]);
+		*(ppixels++) = val;
+
+		val=0;
+		val |= src[idx+4] << 24 | (src[idx+5] << 16) | (src[idx+6] << 8) | (src[idx+7]);
+		*(ppixels++) = val;
+
+		ppixels++;
+	}
+
+	*reg_r = rounding;
+	*reg_mode = 1;
+
+	// read
+	ppixels = mcomp_data;
+	idx=0;
+	for (row = 0; row < (stride << 3); idx = (row += stride))
+	{
+		*((int*)(dst+idx)) = *(ppixels++);
+		*((int*)(dst+idx+4)) = *(ppixels++);
+	}
+#elif USE_HW_MC
     volatile int* ppixels = pixels_base;
 	uint val;
 	for (row = 0; row < (stride << 3) + stride; idx = (row += stride))
@@ -179,7 +255,37 @@ halfpel8x8_hv(uint8 * dst, uint8 * src, xint stride, xint rounding)
     xint    row, col, idx;
 
     idx = 0;
-#if USE_HW_MC
+#if USE_HW_MC_FINAL
+	volatile int* ppixels = mcomp_data;
+	unsigned int val;
+	
+	idx=0;
+	for (row = 0; row < (stride << 3) + stride; idx = (row += stride))
+	{
+		val=0;
+		val |= src[idx] << 24 | (src[idx+1] << 16) | (src[idx+2] << 8) | (src[idx+3]);
+		*(ppixels++) = val;
+
+		val=0;
+		val |= src[idx+4] << 24 | (src[idx+5] << 16) | (src[idx+6] << 8) | (src[idx+7]);
+		*(ppixels++) = val;
+
+		val=src[idx+8] << 24;
+		*(ppixels++) = val;
+	}
+
+	*reg_r = rounding;
+	*reg_mode = 2;
+
+	// read
+	ppixels = mcomp_data;
+	idx=0;
+	for (row = 0; row < (stride << 3); idx = (row += stride))
+	{
+		*((int*)(dst+idx)) = *(ppixels++);
+		*((int*)(dst+idx+4)) = *(ppixels++);
+	}
+#elif USE_HW_MC
 	volatile int* ppixels = pixels_base;
 	uint val;
 	for (row = 0; row < (stride << 3) + stride; idx = (row += stride))
