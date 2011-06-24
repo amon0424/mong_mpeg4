@@ -80,10 +80,8 @@ type reg_type is record
   srcinc  : std_logic_vector(1 downto 0);
   dstaddr : std_logic_vector(31 downto 0);
   dstinc  : std_logic_vector(1 downto 0);
-  
   idstaddr : std_logic_vector(31 downto 0);
   idstinc  : std_logic_vector(1 downto 0);
-  
   len     : std_logic_vector(15 downto 0);
   enable  : std_logic;
   write   : std_logic;
@@ -92,14 +90,11 @@ type reg_type is record
   dstate  : dma_state_type;
   stage	  : dma_stage_type;
   data    : datavec;
-  cnt     : integer range 0 to dbuf-1; --additional one for r, one for action
-  readCountInRow : integer range 0 to 16;
+  cnt     : integer range 0 to dbuf-1;
   src_stride : std_logic_vector(31 downto 0);
   dst_stride : std_logic_vector(31 downto 0);
   src_width : std_logic_vector(3 downto 0);			-- 0~9
   dst_width : std_logic_vector(3 downto 0);			-- 0~9
-  --write_rfactor : std_logic;
- -- write_action : std_logic;
   src_mcomp : std_logic;
   rfactor : std_logic_vector(31 downto 0);
   mcomp_mode : std_logic_vector(1 downto 0);
@@ -154,13 +149,13 @@ begin
 		variable newaddr : std_logic_vector(9 downto 0);
 		variable oldsize : std_logic_vector( 1 downto 0);
 		variable ainc    : std_logic_vector( 3 downto 0);
-		variable write_length : integer range 0 to dbuf;
-		variable read_length : integer range 0 to dbuf;
+		variable trans_length : integer range 0 to 27;
 		variable data 	: Data_Vector(26 downto 0);
-		variable TP 		: Boolean;
 		variable trans_size : integer range 0 to 32;
 		variable DataPart:            Integer := 0;
 		variable need_split_burst : Boolean;
+		
+		variable src_ram, src_mcomp, dst_ram, dst_mcomp : std_logic;
 	begin
 		v := r; 
 		regd := (others => '0'); 
@@ -169,20 +164,46 @@ begin
 		write := '0'; 
 		ready := '0'; 
 		mexc := '0';
-		size := r.srcinc; 
 		irq := '0'; 
-		
+		size := r.srcinc; 
 		start := r.enable;
 		v.inhibit := '0';
 		burst := '0'; 
 		v.beat := 0;
 		
-		if v.src_mcomp = '0' then	-- read from ram, write to mcomp
-			read_length := dbuf;
-			write_length := dbuf;
-		else					-- read from mcomp, write to ram, we just need (2*8=16)
-			read_length := 16;
-			write_length := 16;
+		src_ram := not r.src_mcomp;
+		src_mcomp := r.src_mcomp;
+		dst_ram := r.src_mcomp;
+		dst_mcomp := not r.src_mcomp;
+		
+		-- initialize
+		if rst = '0' then
+			v.dstate := idle; 
+			v.stage := stage1;
+			v.enable := '0'; 
+			v.write := '0';
+			v.cnt  := 0;
+			v.srcaddr := (others=>'0');
+			v.dstaddr := (others=>'0');
+			v.srcinc := (others=>'0');
+			v.dstinc := (others=>'0');
+			v.src_stride := (others=>'0');
+			v.src_width := (others=>'0');
+			v.dst_stride := (others=>'0');
+			v.dst_width := (others=>'0');
+			v.src_mcomp := '0';
+			v.write_addr := (others=>'0');
+			v.write_valid := '0';
+			v.rfactor := (others=>'0');
+			v.mcomp_mode := (others=>'0');
+			v.beat := 0;	
+			dmai.LOCK <= '0';
+		end if;
+		
+		if src_ram = '1' then	-- read from ram, write to mcomp, we need transfer(3*9=27) words
+			trans_length := 27;	
+		else					-- read from mcomp, write to ram, we need transfer(2*8=16) words 
+			trans_length := 16;
 		end if;
 		
 		if r.write = '0' then 
@@ -203,8 +224,7 @@ begin
 		
 		ainc := decode(oldsize);
 		trans_size := conv_integer(ainc);
-		
-		
+		newaddr := oldaddr + ainc(3 downto 0);
 		
 		-- transfer size
 		if trans_size=4 then
@@ -231,8 +251,13 @@ begin
 		--	report "Unsupported data width"
 		--	severity Failure;
 		end if;
-
+		
 		if r.enable = '1' then
+			-- if r.stage = idlestage then
+				-- v.stage := stage2;
+				-- v.dstate := readc;
+			-- end if;
+		
 			v.inhibit := '0';
 			burst := '1'; 
 			if r.write = '0' then	-- read from source
@@ -243,6 +268,7 @@ begin
 					v.srcaddr := r.srcaddr + r.src_stride(9 downto 0);
 				end if;
 				
+				-- if we received a data from source, increse beat
 				if dmao.OKAY = '1' then
 					if need_split_burst and r.beat < 4 then	
 						v.beat := r.beat + 1;
@@ -250,29 +276,33 @@ begin
 						v.beat := 0;
 					end if;
 				end if;
-				if	need_split_burst and
+				
+				if	src_ram = '1' and
 					((v.beat = 2 and ahbmi.hready = '1') or 	-- 3rd address sent
-					(v.beat > 2 or dmao.Ready = '1'))  then	-- 3rd data 
+					(v.beat > 2 or dmao.Ready = '1'))  then		-- 3rd data got
 					-- pause transfer
 					v.inhibit := '1';
 					burst := '0'; 
 				end if;
 				
+				-- if we get a data from source
 				if dmao.READY = '1' then
-					--v.data(r.cnt) := dmao.rdata;
+
+					-- align the data into dma buffer by the transfer size
 					if trans_size=4 then		-- read 4 byte
 					   v.data(r.cnt)    := dmao.Data;
-					elsif trans_size=2 then	-- read 2 byte
+					elsif trans_size=2 then		-- read 2 byte
 					   v.data((r.cnt)/2)((31-16*((r.cnt) mod 2)) downto (16-(16*((r.cnt) mod 2)))) :=
 						 dmao.Data((31-16*DataPart) downto (16-16*DataPart));
 					   --DataPart := (DataPart + 1) mod 2;
-					elsif trans_size=1 then	-- read 1 byte
+					elsif trans_size=1 then		-- read 1 byte
 					   v.data((r.cnt)/4)((31-8*((r.cnt) mod 4)) downto (24-(8*((r.cnt) mod 4)))) :=
 						 dmao.Data((31-8*DataPart) downto (24-8*DataPart));
 					   --DataPart := (DataPart + 1) mod 4;
 					end if;
 					
-					if r.cnt = read_length-1 then
+					
+					if r.cnt = trans_length-1 then					-- if we already get all data
 						v.write := '1'; 
 						v.dstate := writec;
 						v.cnt := 0; 
@@ -280,18 +310,12 @@ begin
 						burst := '0';
 						address := r.dstaddr; 
 						size := r.dstinc;
-					elsif r.src_mcomp = '1' and r.cnt >= 13 then
+					elsif src_mcomp = '1' and r.cnt >= 13 then	-- early stop the data request
 						v.inhibit := '1';
 						burst := '0';
 						v.cnt := r.cnt + 1;
 					else
 						v.cnt := r.cnt + 1; 
-					end if;
-			
-					if r.readCountInRow < r.src_width and not (r.cnt = read_length-1) then 
-						v.readCountInRow := r.readCountInRow + trans_size;
-					else
-						v.readCountInRow := trans_size;
 					end if;
 				end if;
 			else	-- write to destination
@@ -302,8 +326,10 @@ begin
 					v.dstaddr := r.dstaddr + r.dst_stride(9 downto 0);
 				end if;
 				
+				-- if we write a data to the destination
 				if dmao.OKAY = '1' then
-					if need_split_burst and r.beat < 3 then	
+					-- if we are writing to ram, we need to count the beats
+					if dst_ram = '1' and r.beat < 3 then	
 						v.beat := r.beat + 1;
 					else
 						v.beat := 0;
@@ -311,14 +337,15 @@ begin
 				end if;
 				
 				--if need_split_burst and (v.beat > 0 or r.beat > 0) then
-				if  (need_split_burst and (v.beat > 0 or r.beat > 0) and ahbmi.hready = '1') or
-					(r.src_mcomp = '0' and (r.dstate = write_r or r.dstate = write_mode))then
+				if  (dst_ram = '1' and (v.beat > 0 or r.beat > 0) and ahbmi.hready = '1') or
+					(src_ram = '1' and not (r.dstate = writec or r.dstate = readc))then
 					-- pause transfer
 					v.inhibit := '1';
 					burst := '0'; 
 				end if;
 				
-				if r.src_mcomp = '0' then
+				
+				if dst_mcomp = '1' then
 					-- write to mcomp, we need to write rfactor
 					if r.dstate = write_r then 
 						v.dstate  := write_mode;
@@ -326,133 +353,74 @@ begin
 					elsif r.dstate = write_mode then
 						v.dstate := writec;
 						--start := '0';
-					elsif r.cnt = write_length-1 then 
+					elsif r.cnt = trans_length-1 then 
 						v.dstate  := write_r;
 					end if;
-				elsif r.cnt = write_length-1 then 
+				elsif r.cnt = trans_length-1 then 
 					start := '0'; 
 				end if;
 				
-				if dmao.OKAY = '1' then
-					if r.cnt = write_length-1 then
-						if(r.src_mcomp='1' or r.dstate = write_mode) then -- when write done, finish work
+				-- state machine
+				if r.cnt = trans_length-1 then
+					--if(r.src_mcomp='1' or r.dstate = write_mode or r.stage = idlestage) then -- when write done, finish work
+						
+						if r.stage = stage1 and (r.dstate = write_mode or r.src_mcomp='1')then	
+							-- change to idle stage
+							v.stage := idlestage;
+							v.dstate := idle;
+						elsif r.stage = stage2 then	
+							-- finish
+							v.stage := stage1;
+							v.dstate := idle;
+							v.enable := '0'; 
+							v.cnt := 0;
+							v.write := '0';
+							irq := start;
+						elsif r.stage = idlestage then	
+							-- change to stage2, mcomp to dma
+							v.stage := stage2;
+							v.dstate := readc;
 							v.cnt := 0;
 							v.write := '0'; 
-							v.dstate := readc;
-							if r.stage = stage1 then
-								-- change to stage2, mcomp to dma
-								v.len := newlen; 
-								v.stage := idlestage;
-								v.srcaddr := mcomp_data;
-								v.dstaddr := r.idstaddr;
-								v.src_mcomp := '1';
-							elsif r.stage = stage2 then
-								v.dstate := idle;
-								v.stage := stage1;
-								v.enable := start; 
-								irq := start;
-							else
-								v.stage := stage2;
-							end if;
+							v.srcaddr := mcomp_data;
+							v.dstaddr := r.idstaddr;
+							v.src_mcomp := '1';
+							v.len := newlen; 
 						end if;
+					--end if;
+				end if;
+				
+				if dmao.OKAY = '1' then
+					if r.cnt = trans_length-1 then
+						-- if(r.src_mcomp='1' or r.dstate = write_mode) then -- when write done, finish work
+							-- v.cnt := 0;
+							-- if r.stage = stage1 then	
+								-- -- change to idle stage
+								-- v.stage := idlestage;
+								-- v.dstate := idle;
+							-- elsif r.stage = stage2 then	
+								-- -- finish
+								-- v.stage := stage1;
+								-- v.dstate := idle;
+								-- v.enable := 0; 
+								-- irq := start;
+							-- else
+								-- -- change to stage2, mcomp to dma
+								-- v.stage := stage2;
+								-- v.dstate := readc;
+								-- v.write := '0'; 
+								-- v.srcaddr := mcomp_data;
+								-- v.dstaddr := r.idstaddr;
+								-- v.src_mcomp := '1';
+								-- v.len := newlen; 
+							-- end if;
+						-- end if;
 					else 
 						v.cnt := r.cnt + 1; 
-					end if;
-					
-					if r.readCountInRow < r.dst_width and not (r.cnt = write_length-1) then 
-						v.readCountInRow := r.readCountInRow + trans_size;
-					else
-						v.readCountInRow := trans_size;
 					end if;
 				end if;
 			end if;
 		end if;
-
-		
-		start := r.enable;
-
-		newaddr := oldaddr + ainc(3 downto 0);
-		
-		-- beat counter
-		-- if source has stride
-		-- if (r.src_stride /= (31 downto 0 => '0') and r.write = '0') and (dmao.Okay = '1' and r.beat < 4)then	
-			-- v.beat := v.beat + 1;
-		-- else
-			-- v.beat := 0;
-		-- end if;
-		
-		-- go to next row
-		-- if r.beat = 3 then
-			-- if r.write = '0' then 
-				-- v.srcaddr := v.srcaddr + r.src_stride(9 downto 0);
-				-- --v.inhibit := '1';
-			-- else
-				-- v.dstaddr := v.dstaddr + r.dst_stride(9 downto 0);
-				-- --v.inhibit := '1';
-			-- end if;
-		-- --elsif(
-		-- --	v.inhibit := '0';
-		-- end if;
-		
-		-- if r.enable ='1' and r.beat = 0 and dmao.Grant = '1' then
-			-- burst := '1';
-		-- end if;
-		
-		-- burst
-		-- if r.enable = '1' and (r.cnt < read_length-1 or v.write_rfactor='1' or (r.len(9 downto 2) = "11111111")) and
-			-- not (r.beat = 2) then -- if beat = 3, we early stop burst
-			-- --if (dmao.Request and dmao.Ready) = '1' then
-				-- -- decide the new address
-			-- --v.inhibit := '0';
-			-- --burst := '1';
-			-- -- if dmao.Ready = '1'then
-				-- -- if r.write = '0' then 
-					-- -- if not (r.src_stride = (31 downto 0 =>'0')) and r.readCountInRow + ainc >= r.src_width then
-						-- -- burst := '0';
-						-- -- v.srcaddr := v.srcaddr + r.src_stride(9 downto 0) - r.readCountInRow;
-					-- -- else
-						-- -- burst := '1';
-						-- -- --v.srcaddr(9 downto 0) := newaddr;
-					-- -- end if;
-				-- -- else
-					-- -- if not (r.dst_stride = (31 downto 0 =>'0')) and r.readCountInRow + ainc >= r.dst_width then
-						-- -- burst := '0';
-						-- -- v.dstaddr := v.dstaddr + r.dst_stride(9 downto 0) - r.readCountInRow;
-					-- -- else
-						 
-						-- -- --v.dstaddr(9 downto 0) := newaddr;
-					-- -- end if;
-				-- -- end if;
-			-- -- end if;
-		-- else 
-			-- --v.inhibit := '1';
-			-- --burst := '0'; 
-		-- end if;
-		
-		-- request control
-		-- if	r.enable = '1' and 
-			-- ((r.beat > 0 and 
-				-- ((r.write = '0' and not (r.src_stride = (31 downto 0 =>'0'))) or 
-				 -- (r.write = '1' and not (r.dst_stride = (31 downto 0 =>'0')))
-			-- )) or
-			-- (r.write = '1' and (r.cnt = write_length - 1 or not (r.dstate = writec ))))
-			-- then
-			-- -- pause transfer
-			-- v.inhibit := '1';
-			-- burst := '0'; 
-		-- else
-			-- v.inhibit := '0';
-			-- burst := '1'; 
-		-- end if;
-		
-		
-		
-		-- if (r.write = '0' and not (r.src_stride = (31 downto 0 =>'0'))) or (r.write = '1' and not (r.dst_stride = (31 downto 0 =>'0')))then	
-			-- -- if read source need stride, or write destination need stride
-			-- dmai.Beat <= HINCR;
-		-- else
-			-- dmai.Beat <= HINCR;
-		-- end if;
 
 		-- AHB write address fetch
 		if (ahbsi.hsel(slvidx) and ahbsi.htrans(1) and ahbsi.hready and ahbsi.hwrite) = '1' then
@@ -498,34 +466,8 @@ begin
 			end case;
 		end if;
 
-		if rst = '0' then
-			v.dstate := idle; 
-			v.stage := stage1;
-			v.enable := '0'; 
-			v.write := '0';
-			v.cnt  := 0;
-			v.readCountInRow := 0;
-			v.srcaddr := (others=>'0');
-			v.dstaddr := (others=>'0');
-			v.srcinc := (others=>'0');
-			v.dstinc := (others=>'0');
-			v.src_stride := (others=>'0');
-			v.src_width := (others=>'0');
-			v.dst_stride := (others=>'0');
-			v.dst_width := (others=>'0');
-			v.src_mcomp := '0';
-			--v.write_rfactor := '0';
-			--DMAInit(clk,  dmai);
-			v.write_addr := (others=>'0');
-			v.write_valid := '0';
-			v.rfactor := (others=>'0');
-			v.mcomp_mode := (others=>'0');
-			v.beat := 0;	
-			dmai.LOCK <= '0';
-		end if;
-		
-		
-		
+
+
 		rin <= v;
 		
 		dmai.Request <= start and not v.inhibit;
@@ -550,26 +492,14 @@ begin
 		
 	end process;
 	
-	mst : DMA2AHB generic map(
-		hindex => mstidx,
-		vendorid => VENDOR_NCTU,
-		deviceid => NCTU_MCOMP,
-		version => verid
-	)
-	port map(
-		-- AMBA AHB system signals
-		HCLK => clk,
-		HRESETn => rst,
+	regs : process(clk)
+	begin 
+		if rising_edge(clk) then 
+			r <= rin; 
+		end if; 
+	end process;
 
-		-- Direct Memory Access Interface
-		DMAIn => dmai,
-		DMAOut => dmao,
-
-		-- AMBA AHB Master Interface
-		AHBIn => ahbmi,
-		AHBOut => ahbmo
-	);
-
+	-- ahb reading
 	ahb_read : process(clk, rst)
 	begin 
 		if rst = '0' then
@@ -591,34 +521,27 @@ begin
 		end if; 
 	end process;
 
-	regs : process(clk)
-	begin 
-		if rising_edge(clk) then 
-			r <= rin; 
-		end if; 
-	end process;
-	--------------------end of dma--------------------
 	
-	-- process (rst, clk)
-	-- begin
-		-- if(rst = '0')then
-			-- readCountInRow <= (others=>'0');
-		-- else if rising_edge(clk) then 
-			-- if dmao.active = '1' then
-				-- if r.write = '0' then
-					-- if dmao.ready = '1' then
-						-- if readCountInRow = width then 
-							-- readCountInRow <= (others=>'0');
-						-- else
-							-- readCountInRow <= readCountInRow + 1;
-						-- end if;
-					-- end if;
-				-- else
-				-- end if;
-			-- end if;
-		-- end if;
-	-- end process;
+	-- master
+	mst : DMA2AHB generic map(
+		hindex => mstidx,
+		vendorid => VENDOR_NCTU,
+		deviceid => NCTU_MCOMP,
+		version => verid
+	)
+	port map(
+		-- AMBA AHB system signals
+		HCLK => clk,
+		HRESETn => rst,
 
+		-- Direct Memory Access Interface
+		DMAIn => dmai,
+		DMAOut => dmao,
+
+		-- AMBA AHB Master Interface
+		AHBIn => ahbmi,
+		AHBOut => ahbmo
+	);
 -- pragma translate_off
   bootmsg : report_version 
   generic map ("Final " & tost(slvidx) & ": dma test");
