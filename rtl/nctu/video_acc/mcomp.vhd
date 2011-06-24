@@ -53,7 +53,7 @@ constant hconfig : ahb_config_type := (
 );
 
 
-signal reg_r : std_logic_vector(31 downto 0);  -- rounding value
+signal reg_r : std_logic_vector(7 downto 0);  -- rounding value
 signal wr_valid : std_logic; -- is the logic selected by a master
 signal addr_wr : std_logic_vector(31 downto 0);
 signal mode : std_logic_vector(1 downto 0);
@@ -203,7 +203,7 @@ begin
 		elsif rising_edge(clk) then
 			if wr_valid = '1' then
 				if addr_wr(6 downto 2) = "11011" then -- 27, 0x6C
-					reg_r <= ahbsi.hwdata;
+					reg_r <= ahbsi.hwdata(7 downto 0);
 				elsif addr_wr(6 downto 2) = "11100" then -- 28, 0x70 mode
 					mode <= ahbsi.hwdata(1 downto 0);
 				end if;
