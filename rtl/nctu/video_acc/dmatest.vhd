@@ -382,8 +382,15 @@ begin
 							v.dstate := readc;
 							v.cnt := 0;
 							v.write := '0'; 
+							
 							v.srcaddr := mcomp_data;
+							v.src_stride := (others=>'0');
+							v.srcinc := "10";
+							
 							v.dstaddr := r.idstaddr;
+							v.dst_stride := r.src_stride;
+							v.dstinc := r.idstinc;
+							
 							v.src_mcomp := '1';
 							v.len := newlen; 
 						end if;
@@ -447,6 +454,7 @@ begin
 						v.dstate := readc;
 						v.stage := stage1;
 						v.dstaddr := mcomp_data;
+						v.dst_stride := (others=>'0');
 					end if;
 				when "0011" => -- 0x0C
 					v.src_stride := (31 downto 12 => '0') & ahbsi.hwdata(31 downto 20);
