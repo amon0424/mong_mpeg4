@@ -125,7 +125,9 @@ begin
 						ahbso.hready <= '1'; 
 					end if;
 				end if;	
-			elsif reading = '1' then
+			elsif reading = '1' and mode(1) = '0' then
+				ahbso.hready <= '1'; 
+			elsif hv_start = '1' then
 				ahbso.hready <= '1'; 
 			end if;
 		end if;
@@ -219,19 +221,13 @@ begin
 		elsif rising_edge(clk) then
 			if(ahbsi.hsel(ahbndx) = '1' and ahbsi.hwrite = '0' and mode(1) = '1' and ahbsi.htrans = "10" )then
 				hv_request <= '1';
-			end if;
-			if(hv_request = '1' and hv_counter < "1111")then
-				hv_start <= '1';
-			--else
-			--	hv_start <= '0';
-			--	hv_request <= '0';
-			end if;
-			
-			if(hv_counter = "1110")then
+			elsif(hv_counter = "1110" or ahbsi.htrans = "00")then
 				hv_request <= '0';
 			end if;
 			
-			if(hv_request = '0')then
+			if(hv_request = '1' and hv_counter < "1111")then
+				hv_start <= '1';
+			elsif(hv_request = '0')then
 				hv_start <= '0';
 			end if;
 			
@@ -283,7 +279,7 @@ begin
 	end process;
 	
 	read_process : process (clk, rst)
-	variable shift : std_logic_vector(31 downto 0);
+	variable shift : std_logic_vector(9 downto 0);
 	variable hv_a : std_logic_vector(31 downto 0);  -- pixel value 1
 	variable hv_b : std_logic_vector(31 downto 0);  -- pixel value 2
 	variable hv_right : std_logic_vector(31 downto 0);
@@ -300,7 +296,7 @@ begin
 				ahbso.hrdata <= (others => '0');
 				next_rdata <= (others => '0');
 			end if;
-			if reading = '1' then
+			if mode(1) = '0' and reading = '1' then
 				if mode = "00" then
 					-- if mode = "00" then
 						-- --shift := reg_a + reg_b + 1 - reg_r;
@@ -312,57 +308,57 @@ begin
 						-- ahbso.hrdata <= (others => '0');
 					-- end if;
 					for i in 1 to 3 loop
-						shift := ram_do1(i*8+7 downto i*8) + ram_do1((i-1)*8+7 downto (i-1)*8) + 1 - reg_r;
+						shift := ( '0' & ram_do1(i*8+7 downto i*8)) + ram_do1((i-1)*8+7 downto (i-1)*8) + 1 - reg_r;
 						ahbso.hrdata(i*8+7 downto i*8) <= shift(8 downto 1);
 					end loop;
-					shift := ram_do1(7 downto 0) + ram_do2(31 downto 24) + 1 - reg_r;
+					shift := ('0' & ram_do1(7 downto 0)) + ram_do2(31 downto 24) + 1 - reg_r;
 					ahbso.hrdata(7 downto 0) <= shift(8 downto 1);
 					--next_rdata <= ram_do2;
 					-- if no next request
 				elsif mode = "01" then
 					for i in 0 to 3 loop
-						shift := ram_do1(i*8+7 downto i*8) + ram_do2(i*8+7 downto i*8) + 1 - reg_r;
+						shift := ('0' & ram_do1(i*8+7 downto i*8)) + ram_do2(i*8+7 downto i*8) + 1 - reg_r;
 						ahbso.hrdata(i*8+7 downto i*8) <= shift(8 downto 1);
 					end loop;
-				elsif mode = "10" then
-					hv_a := ram_do1;
-					hv_b := ram_do2;
-					case hv_counter(1 downto 0) is
-					when "00" =>
-						hv_right := reg_c;
-						--hv_right := reg_d;
-						hv_right_bottom := ram_do2;
-						hv_a := hv_tmp                                                                                                        ;
-						hv_b := ram_do1;
-					when "01" =>
-						hv_right := ram_do2;
-						hv_right_bottom := ram_do1;
-						hv_a := reg_c;
-						hv_b := reg_d;
-					when "10" =>
-						hv_right := reg_d;
-						hv_right_bottom := ram_do2;
-						hv_a := hv_tmp;
-						hv_b := ram_do1;
-					when "11" =>
-						hv_right := ram_do2;
-						hv_right_bottom := ram_do1;
-						hv_a := reg_d;
-						hv_b := reg_c;
-					when others => null;
-					end case;
-					
-					for i in 1 to 3 loop
-						shift := hv_a(i*8+7 downto i*8) + hv_a((i-1)*8+7 downto (i-1)*8) + 
-								 hv_b(i*8+7 downto i*8) + hv_b((i-1)*8+7 downto (i-1)*8) + 
-								 2 - reg_r;
-						ahbso.hrdata(i*8+7 downto i*8) <= shift(9 downto 2);
-					end loop;
-					shift := hv_a(7 downto 0) + hv_right(31 downto 24) + 
-							 hv_b(7 downto 0) + hv_right_bottom(31 downto 24) + 
-							 2 - reg_r;
-					ahbso.hrdata(7 downto 0) <= shift(9 downto 2);
 				end if;
+			elsif hv_start = '1' then	-- mode = 10
+				hv_a := ram_do1;
+				hv_b := ram_do2;
+				case hv_counter(1 downto 0) is
+				when "00" =>
+					hv_right := reg_c;
+					--hv_right := reg_d;
+					hv_right_bottom := ram_do2;
+					hv_a := hv_tmp                                                                                                        ;
+					hv_b := ram_do1;
+				when "01" =>
+					hv_right := ram_do2;
+					hv_right_bottom := ram_do1;
+					hv_a := reg_c;
+					hv_b := reg_d;
+				when "10" =>
+					hv_right := reg_d;
+					hv_right_bottom := ram_do2;
+					hv_a := hv_tmp;
+					hv_b := ram_do1;
+				when "11" =>
+					hv_right := ram_do2;
+					hv_right_bottom := ram_do1;
+					hv_a := reg_d;
+					hv_b := reg_c;
+				when others => null;
+				end case;
+				
+				for i in 1 to 3 loop
+					shift := ('0' & hv_a(i*8+7 downto i*8)) + hv_a((i-1)*8+7 downto (i-1)*8) + 
+							 hv_b(i*8+7 downto i*8) + hv_b((i-1)*8+7 downto (i-1)*8) + 
+							 2 - reg_r;
+					ahbso.hrdata(i*8+7 downto i*8) <= shift(9 downto 2);
+				end loop;
+				shift := ('0' & hv_a(7 downto 0)) + hv_right(31 downto 24) + 
+						 hv_b(7 downto 0) + hv_right_bottom(31 downto 24) + 
+						 2 - reg_r;
+				ahbso.hrdata(7 downto 0) <= shift(9 downto 2);
 			end if;
 		end if;
 	end process;
