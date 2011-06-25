@@ -91,6 +91,8 @@ type reg_type is record
   stage	  : dma_stage_type;
   data    : datavec;
   cnt     : integer range 0 to dbuf-1;
+  idst_stride : std_logic_vector(11 downto 0);
+  idst_width : std_logic_vector(3 downto 0);
   src_stride : std_logic_vector(11 downto 0);
   dst_stride : std_logic_vector(11 downto 0);
   src_width : std_logic_vector(3 downto 0);			-- 0~9
@@ -373,18 +375,20 @@ begin
 							v.write := '0';
 							irq := start;
 						elsif r.stage = idlestage then	
-							-- change to stage2, mcomp to dma
+							-- change to stage2, mcomp to ram
 							v.stage := stage2;
 							v.dstate := readc;
 							v.cnt := 0;
 							v.write := '0'; 
 							
+							-- mcomp
 							v.srcaddr := mcomp_data;
 							v.src_stride := (others=>'0');
 							v.srcinc := "10";
 							
+							-- ram
 							v.dstaddr := r.idstaddr;
-							v.dst_stride := r.src_stride;
+							v.dst_stride := r.idst_stride;
 							v.dstinc := r.idstinc;
 							
 							v.src_mcomp := '1';
@@ -422,20 +426,23 @@ begin
 				when "0010" => -- 0x08
 					--v.len := ahbsi.hwdata(15 downto 0);
 					v.srcinc := ahbsi.hwdata(17 downto 16);
-					v.dstinc := ahbsi.hwdata(19 downto 18);
+					v.idstinc := ahbsi.hwdata(19 downto 18);
 					v.enable := ahbsi.hwdata(20);
 					if v.enable = '1' then
 						v.src_mcomp := '0';
 						v.dstate := readc;
 						v.stage := stage1;
+						
+						-- to mcomp
 						v.dstaddr := mcomp_data;
 						v.dst_stride := (others=>'0');
+						v.dstinc := "10" ;
 					end if;
 				when "0011" => -- 0x0C
 					v.src_stride := ahbsi.hwdata(31 downto 20);	-- 12 bits
 					v.src_width := ahbsi.hwdata(19 downto 16);	-- 4 bits
-					v.dst_stride := ahbsi.hwdata(15 downto 4);	-- 12 bits
-					v.dst_width := ahbsi.hwdata(3 downto 0);	-- 4 bits
+					v.idst_stride := ahbsi.hwdata(15 downto 4);	-- 12 bits
+					v.idst_width := ahbsi.hwdata(3 downto 0);	-- 4 bits
 				-- when "0100" => -- 0x10
 					-- v.src_width := ahbsi.hwdata(3 downto 0);
 				-- when "0101" => -- 0x14
