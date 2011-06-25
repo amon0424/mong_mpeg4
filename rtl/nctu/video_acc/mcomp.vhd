@@ -66,7 +66,7 @@ signal reg_c : std_logic_vector(31 downto 0);  -- pixel value 3
 signal reg_d : std_logic_vector(31 downto 0);  -- pixel value 4
 signal hv_flag : std_logic;
 signal hv_counter : std_logic_vector(3 downto 0);
-signal hv_tmp : std_logic_vector(31 downto 0);
+--signal hv_tmp : std_logic_vector(31 downto 0);
 signal hv_start : std_logic;
 signal hv_request : std_logic;
 signal last_ram_addr1, last_ram_addr2: std_logic_vector(4 downto 0);
@@ -252,27 +252,29 @@ begin
 			reg_b <= (others => '0');
 			reg_c <= (others => '0');
 			reg_d <= (others => '0');
-			hv_tmp <= (others => '0');
+			--hv_tmp <= (others => '0');
 		elsif rising_edge(clk) then
 			if(hv_request and not hv_start) = '1'then
-				hv_tmp <= ram_do1;
+				--hv_tmp <= ram_do1;
+				reg_b <= ram_do1;
 				reg_c <= ram_do2;
 			else
-				hv_tmp <= reg_a;
+				--hv_tmp <= reg_a;
+				reg_b <= reg_a;
 			end if;
 			
-			reg_b <= hv_tmp;
+			--reg_b <= hv_tmp;
 			reg_a <= ram_do1;
 			
 			case  hv_counter(1 downto 0) is
 			when "00" =>
 				reg_d <= ram_do2;
 			when "01" =>
-				reg_b <= ram_do2;
+				--reg_b <= ram_do2;
 			when "10" =>
 				reg_c <= ram_do2;
 			when "11" =>
-				reg_b <= ram_do2;
+				--reg_b <= ram_do2;
 			when others => null;
 			end case;
 		end if;
@@ -329,7 +331,8 @@ begin
 					hv_right := reg_c;
 					--hv_right := reg_d;
 					hv_right_bottom := ram_do2;
-					hv_a := hv_tmp                                                                                                        ;
+					--hv_a := hv_tmp;
+					hv_a := reg_b;
 					hv_b := ram_do1;
 				when "01" =>
 					hv_right := ram_do2;
@@ -339,7 +342,8 @@ begin
 				when "10" =>
 					hv_right := reg_d;
 					hv_right_bottom := ram_do2;
-					hv_a := hv_tmp;
+					--hv_a := hv_tmp;
+					hv_a := reg_b;
 					hv_b := ram_do1;
 				when "11" =>
 					hv_right := ram_do2;
