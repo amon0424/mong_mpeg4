@@ -100,10 +100,11 @@ type reg_type is record
   src_mcomp : std_logic;
   rfactor : std_logic_vector(31 downto 0);
   mcomp_mode : std_logic_vector(1 downto 0);
-  beat : integer range 0 to 4;
+  beat : integer range 0 to 9;
   
   write_valid : std_logic; -- is the logic selected by a master
   write_addr : std_logic_vector(31 downto 0);
+  offset : std_logic_vector(1 downto 0);
 end record;
 
 signal r, rin : reg_type;
@@ -156,7 +157,7 @@ begin
 		variable trans_size : integer range 0 to 32;
 		variable DataPart:            Integer := 0;
 		variable need_split_burst : Boolean;
-		
+		variable beats_per_row : integer range 0 to 9;
 		variable src_ram, src_mcomp, dst_ram, dst_mcomp : std_logic;
 	begin
 		v := r; 
@@ -173,6 +174,7 @@ begin
 		burst := '0'; 
 		address := (others=>'0');
 		--v.beat := 0;
+		beats_per_row := 3;
 		
 		src_ram := not r.src_mcomp;
 		src_mcomp := r.src_mcomp;
@@ -202,6 +204,8 @@ begin
 			v.beat := 0;	
 			dmai.LOCK <= '0';
 		end if;
+		
+		
 
 		if r.enable = '1' then
 			v.inhibit := '0';
@@ -217,47 +221,54 @@ begin
 				address := r.srcaddr;
 				oldaddr := r.srcaddr(9 downto 0); 
 				oldsize := r.srcinc;
+				if(trans_size = 4)then
+					beats_per_row := 3;
+				elsif(trans_size = 1)then
+					beats_per_row := 9;
+				end if;
 			else 
 				address := r.dstaddr; 
 				oldaddr := r.dstaddr(9 downto 0); 
-				oldsize := r.dstinc; 
+				oldsize := r.dstinc;
 			end if;
 			
 			ainc := decode(oldsize);
 			trans_size := conv_integer(ainc);
 			newaddr := oldaddr + ainc(3 downto 0);
 			
+			
+			
 			-- transfer size
-			if trans_size=4 then
+			--if trans_size=4 then
 				dmai.Size <= HSIZE32;
-			elsif trans_size=2 then
-				dmai.Size <= HSIZE16;
-				if address(1 downto 0) = "00" then
-					DataPart := 0;
-				else
-					DataPart := 1;
-				end if;
-			elsif trans_size=1 then
-				dmai.Size <= HSIZE8;
-				if address(1 downto 0) = "00" then
-					DataPart := 0;
-				elsif address(1 downto 0) = "01" then
-					DataPart := 1;
-				elsif address(1 downto 0) = "10" then
-					DataPart := 2;
-				else
-					DataPart := 3;
-				end if;
+			-- elsif trans_size=2 then
+				-- dmai.Size <= HSIZE16;
+				-- if address(1 downto 0) = "00" then
+					-- DataPart := 0;
+				-- else
+					-- DataPart := 1;
+				-- end if;
+			-- elsif trans_size=1 then
+				-- dmai.Size <= HSIZE8;
+				-- if address(1 downto 0) = "00" then
+					-- DataPart := 0;
+				-- elsif address(1 downto 0) = "01" then
+					-- DataPart := 1;
+				-- elsif address(1 downto 0) = "10" then
+					-- DataPart := 2;
+				-- else
+					-- DataPart := 3;
+				-- end if;
 			--else
 			--	report "Unsupported data width"
 			--	severity Failure;
-			end if;
+			--end if;
 		
 			if r.write = '0' then	-- read from source
 				--need_split_burst := (r.src_stride /= (31 downto 0 =>'0'));
 				
 				-- set new address of new burst
-				if r.beat = 3 then
+				if r.beat = beats_per_row then
 					v.srcaddr := r.srcaddr + r.src_stride(9 downto 0);
 				end if;
 				
@@ -268,13 +279,13 @@ begin
 					else
 						v.beat := 0;
 					end if;
-				elsif r.beat = 3 then
+				elsif r.beat = beats_per_row then
 					v.beat := 0;
 				end if;
 				
 				if	src_ram = '1' and
-					((v.beat = 2 and ahbmi.hready = '1') or 	-- 3rd address sent
-					(v.beat > 2 or dmao.Ready = '1'))  then		-- 3rd data got
+					((v.beat = beats_per_row-1 and ahbmi.hready = '1') or 	-- 3rd address sent
+					(v.beat > beats_per_row-1 or dmao.Ready = '1'))  then		-- 3rd data got
 					-- pause transfer
 					v.inhibit := '1';
 					burst := '0'; 
@@ -284,17 +295,39 @@ begin
 				if dmao.READY = '1' then
 
 					-- align the data into dma buffer by the transfer size
-					if trans_size=4 then		-- read 4 byte
-					   v.data(r.cnt)    := dmao.Data;
-					elsif trans_size=2 then		-- read 2 byte
-					   v.data((r.cnt)/2)((31-16*((r.cnt) mod 2)) downto (16-(16*((r.cnt) mod 2)))) :=
-						 dmao.Data((31-16*DataPart) downto (16-16*DataPart));
-					   --DataPart := (DataPart + 1) mod 2;
-					elsif trans_size=1 then		-- read 1 byte
-					   v.data((r.cnt)/4)((31-8*((r.cnt) mod 4)) downto (24-(8*((r.cnt) mod 4)))) :=
-						 dmao.Data((31-8*DataPart) downto (24-8*DataPart));
-					   --DataPart := (DataPart + 1) mod 4;
-					end if;
+					--if trans_size=4 then		-- read 4 byte
+						if(src_mcomp = '1' or r.offset = "00")then
+							v.data(r.cnt) := dmao.Data;
+						elsif(src_ram = '1')then
+							case r.offset is
+							when "01" =>
+								if(r.cnt > 0)then
+									v.data(r.cnt-1)(7 downto 0) := dmao.Data(31 downto 24);
+								end if;
+								v.data(r.cnt)(31 downto 8) := dmao.Data(23 downto 0);
+							when "10" =>
+								if(r.cnt > 0)then
+									v.data(r.cnt-1)(15 downto 0) := dmao.Data(31 downto 16);
+								end if;
+								v.data(r.cnt)(31 downto 16) := dmao.Data(15 downto 0);
+							when "11" =>
+								if(r.cnt > 0)then
+									v.data(r.cnt-1)(23 downto 0) := dmao.Data(31 downto 8);
+								end if;
+								v.data(r.cnt)(31 downto 24) := dmao.Data(7 downto 0);
+							when others=> null;
+							end case;
+						end if;
+					   
+					-- elsif trans_size=2 then		-- read 2 byte
+					   -- v.data((r.cnt)/2)((31-16*((r.cnt) mod 2)) downto (16-(16*((r.cnt) mod 2)))) :=
+						 -- dmao.Data((31-16*DataPart) downto (16-16*DataPart));
+					   -- --DataPart := (DataPart + 1) mod 2;
+					-- elsif trans_size=1 then		-- read 1 byte
+					   -- v.data((r.cnt)/4)((31-8*((r.cnt) mod 4)) downto (24-(8*((r.cnt) mod 4)))) :=
+						 -- dmao.Data((31-8*DataPart) downto (24-8*DataPart));
+					   -- --DataPart := (DataPart + 1) mod 4;
+					--end if;
 					
 					
 					if r.cnt = trans_length-1 then					-- if we already get all data
@@ -439,7 +472,8 @@ begin
 						v.dstinc := "10" ;
 					end if;
 				when "0011" => -- 0x0C
-					v.src_stride := ahbsi.hwdata(31 downto 20);	-- 12 bits
+					v.offset := ahbsi.hwdata(31 downto 30);
+					v.src_stride := "00" & ahbsi.hwdata(29 downto 20);	-- 10 bits
 					v.src_width := ahbsi.hwdata(19 downto 16);	-- 4 bits
 					v.idst_stride := ahbsi.hwdata(15 downto 4);	-- 12 bits
 					v.idst_width := ahbsi.hwdata(3 downto 0);	-- 4 bits
