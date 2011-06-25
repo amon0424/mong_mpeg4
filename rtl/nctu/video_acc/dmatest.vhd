@@ -459,6 +459,7 @@ begin
 		rin <= v;
 		
 		dmai.Request <= start and not v.inhibit;
+		dmai.Lock <= r.enable;
 		dmai.Beat 	<= HINCR;
 		dmai.Burst   <= burst;
 		dmai.Store   <= v.write;
