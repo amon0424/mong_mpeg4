@@ -149,7 +149,7 @@ begin
       end if;
   end process;
   
-  ram_addr1 <=  addr_wr(6 downto 2) when (wr_valid = '1' and addr_wr(6 downto 2) < "11011") else 			-- write
+	ram_addr1 <=addr_wr(6 downto 2) when (wr_valid = '1' and addr_wr(6 downto 2) < "11011") else 				-- write
 				ahbsi.haddr(6 downto 2) + ahbsi.haddr(6 downto 3) 
 					when ahbsi.hwrite = '0' and ahbsi.haddr(6 downto 2) < "10010" and ahbsi.htrans = "10" else	-- 1st read
 				next_addr(6 downto 2) + next_addr(6 downto 3) 
@@ -158,19 +158,18 @@ begin
 				last_ram_addr1 + 2 when (hv_start and hv_request and mode(1)) = '1' and hv_flag = '0' and ahbsi.htrans = "11" else
 				last_ram_addr1 + 1 when (hv_start and hv_request and mode(1)) = '1' and hv_flag = '1' and ahbsi.htrans = "11" else
 				(others => '0');
-  ram_we1 <= '1' when (wr_valid = '1' and addr_wr(6 downto 2) < "11011") else '0';
-  ram_di1 <= ahbsi.hwdata;
-  --ahbso.hrdata <= ram_do1;
-  
-  ram_addr2 <=  ram_addr1 + 1 when (ahbsi.hsel(ahbndx) and not ahbsi.hwrite) = '1' and (mode = "00" or (mode="10" and ahbsi.htrans="10")) else
+	ram_we1 <= '1' when (wr_valid = '1' and addr_wr(6 downto 2) < "11011") else '0';
+	ram_di1 <= ahbsi.hwdata;
+
+	ram_addr2 <=ram_addr1 + 1 when (ahbsi.hsel(ahbndx) and not ahbsi.hwrite) = '1' and (mode = "00" or (mode="10" and ahbsi.htrans="10")) else
 				ram_addr1 + 3 when (ahbsi.hsel(ahbndx) and not ahbsi.hwrite) = '1' and mode = "01" else
 				last_ram_addr2 + 3 when (hv_request and not hv_start) = '1'else
 				last_ram_addr2 - 2 when (hv_start and mode(1)) = '1' and hv_flag = '0' and ahbsi.htrans = "11" else
 				last_ram_addr2 + 5 when (hv_start and mode(1)) = '1' and hv_flag = '1' and ahbsi.htrans = "11" and hv_counter < "1111" else
 				
 				(others => '0');
-  ram_we2 <= '0';
-  ram_di2 <= (others => '0');
+	ram_we2 <= '0';
+	ram_di2 <= (others => '0');
   
 	process (clk, rst)
 	begin
@@ -202,7 +201,7 @@ begin
 			mode <= "00";
 		elsif rising_edge(clk) then
 			if wr_valid = '1' then
-				if addr_wr(6 downto 2) = "11011" then -- 27, 0x6C
+				if addr_wr(6 downto 2) = "11011" then -- 27, 0x6C r factor
 					reg_r <= ahbsi.hwdata(7 downto 0);
 				elsif addr_wr(6 downto 2) = "11100" then -- 28, 0x70 mode
 					mode <= ahbsi.hwdata(1 downto 0);
@@ -298,25 +297,14 @@ begin
 				ahbso.hrdata <= (others => '0');
 				next_rdata <= (others => '0');
 			end if;
-			if mode(1) = '0' and reading = '1' then
+			if mode(1) = '0' and reading = '1' then	-- mode = 00 or 01
 				if mode = "00" then
-					-- if mode = "00" then
-						-- --shift := reg_a + reg_b + 1 - reg_r;
-						-- --ahbso.hrdata <= ('0' & shift(31 downto 1));
-					-- elsif mode = "01" then
-						-- --shift := reg_a + reg_b + reg_c + reg_d + 2 - reg_r;
-						-- --ahbso.hrdata <= ("00" & shift(31 downto 2));
-					-- else
-						-- ahbso.hrdata <= (others => '0');
-					-- end if;
 					for i in 1 to 3 loop
 						shift := ( "00" & ram_do1(i*8+7 downto i*8)) + ram_do1((i-1)*8+7 downto (i-1)*8) + 1 - reg_r;
 						ahbso.hrdata(i*8+7 downto i*8) <= shift(8 downto 1);
 					end loop;
 					shift := ("00" & ram_do1(7 downto 0)) + ram_do2(31 downto 24) + 1 - reg_r;
 					ahbso.hrdata(7 downto 0) <= shift(8 downto 1);
-					--next_rdata <= ram_do2;
-					-- if no next request
 				elsif mode = "01" then
 					for i in 0 to 3 loop
 						shift := ("00" & ram_do1(i*8+7 downto i*8)) + ram_do2(i*8+7 downto i*8) + 1 - reg_r;
@@ -329,9 +317,7 @@ begin
 				case hv_counter(1 downto 0) is
 				when "00" =>
 					hv_right := reg_c;
-					--hv_right := reg_d;
 					hv_right_bottom := ram_do2;
-					--hv_a := hv_tmp;
 					hv_a := reg_b;
 					hv_b := ram_do1;
 				when "01" =>
