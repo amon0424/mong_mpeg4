@@ -640,7 +640,7 @@ begin
     port map (rstn, clkm, ahbsi, ahbso(4));
 	
 	
-	dma0 : dmatest generic map (
+	dma0 : mcomp_dma generic map (
 				slvidx => 5,
 				ahbaddr => 16#B03#,
 				verid => 1,

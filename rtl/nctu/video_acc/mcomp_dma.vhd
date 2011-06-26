@@ -28,7 +28,7 @@ use gaisler.misc.all;
 library techmap;
 use techmap.gencomp.all;
 
-entity dmatest is
+entity mcomp_dma is
   generic (
     slvidx  : integer := 0;	-- slave index
     ahbaddr : integer := 0;
@@ -53,7 +53,7 @@ entity dmatest is
   );
 end;
 
-architecture rtl of dmatest is
+architecture rtl of mcomp_dma is
 
 
 constant hconfig : ahb_config_type := (
@@ -77,11 +77,11 @@ type datavec is array (0 to dbuf-1) of word32;
 
 type reg_type is record
   srcaddr : std_logic_vector(31 downto 0);
-  srcinc  : std_logic_vector(1 downto 0);
+  --srcinc  : std_logic_vector(1 downto 0);
   dstaddr : std_logic_vector(31 downto 0);
-  dstinc  : std_logic_vector(1 downto 0);
+  --dstinc  : std_logic_vector(1 downto 0);
   idstaddr : std_logic_vector(31 downto 0);
-  idstinc  : std_logic_vector(1 downto 0);
+ -- idstinc  : std_logic_vector(1 downto 0);
   --len     : std_logic_vector(15 downto 0);
   enable  : std_logic;
   write   : std_logic;
@@ -91,14 +91,14 @@ type reg_type is record
   stage	  : dma_stage_type;
   data    : datavec;
   cnt     : integer range 0 to dbuf-1;
-  idst_stride : std_logic_vector(11 downto 0);
-  idst_width : std_logic_vector(3 downto 0);
-  src_stride : std_logic_vector(11 downto 0);
-  dst_stride : std_logic_vector(11 downto 0);
-  src_width : std_logic_vector(3 downto 0);			-- 0~9
-  dst_width : std_logic_vector(3 downto 0);			-- 0~9
+  idst_stride : std_logic_vector(9 downto 0);
+  --idst_width : std_logic_vector(3 downto 0);
+  src_stride : std_logic_vector(9 downto 0);
+  dst_stride : std_logic_vector(9 downto 0);
+  --src_width : std_logic_vector(3 downto 0);			-- 0~9
+  --dst_width : std_logic_vector(3 downto 0);			-- 0~9
   src_mcomp : std_logic;
-  rfactor : std_logic_vector(31 downto 0);
+  mcomp_r : std_logic_vector(7 downto 0);
   mcomp_mode : std_logic_vector(1 downto 0);
   beat : integer range 0 to 9;
   
@@ -137,7 +137,7 @@ begin
 	---------------------ahb dma----------------------
 	comb : process(ahbsi, dmao, rst, r)
 		variable v       : reg_type;
-		variable regd    : std_logic_vector(31 downto 0);   -- data from registers
+		--variable regd    : std_logic_vector(31 downto 0);   -- data from registers
 		variable start   : std_logic;
 		variable burst   : std_logic;
 		variable write   : std_logic;
@@ -149,9 +149,9 @@ begin
 		--variable size    : std_logic_vector( 1 downto 0);   -- DMA transfer size
 		--variable newlen  : std_logic_vector(15 downto 0);
 		variable oldaddr : std_logic_vector(9 downto 0);
-		variable newaddr : std_logic_vector(9 downto 0);
+		--variable newaddr : std_logic_vector(9 downto 0);
 		variable oldsize : std_logic_vector( 1 downto 0);
-		variable ainc    : std_logic_vector( 3 downto 0);
+		--variable ainc    : std_logic_vector( 3 downto 0);
 		variable trans_length : integer range 0 to 27;
 		variable data 	: Data_Vector(26 downto 0);
 		variable trans_size : integer range 0 to 32;
@@ -161,7 +161,7 @@ begin
 		variable src_ram, src_mcomp, dst_ram, dst_mcomp : std_logic;
 	begin
 		v := r; 
-		regd := (others => '0'); 
+		--regd := (others => '0'); 
 		burst := '0'; 
 		start := '0';
 		write := '0'; 
@@ -190,16 +190,16 @@ begin
 			v.cnt  := 0;
 			v.srcaddr := (others=>'0');
 			v.dstaddr := (others=>'0');
-			v.srcinc := (others=>'0');
-			v.dstinc := (others=>'0');
+			--v.srcinc := (others=>'0');
+			--v.dstinc := (others=>'0');
 			v.src_stride := (others=>'0');
-			v.src_width := (others=>'0');
+			--v.src_width := (others=>'0');
 			v.dst_stride := (others=>'0');
-			v.dst_width := (others=>'0');
+			--v.dst_width := (others=>'0');
 			v.src_mcomp := '0';
 			v.write_addr := (others=>'0');
 			v.write_valid := '0';
-			v.rfactor := (others=>'0');
+			v.mcomp_r := (others=>'0');
 			v.mcomp_mode := (others=>'0');
 			v.beat := 0;	
 			dmai.LOCK <= '0';
@@ -219,23 +219,24 @@ begin
 			
 			if r.write = '0' then 
 				address := r.srcaddr;
-				oldaddr := r.srcaddr(9 downto 0); 
-				oldsize := r.srcinc;
-				if(trans_size = 4)then
+				--oldaddr := r.srcaddr(9 downto 0); 
+					
+				--if(trans_size = 4)then
 					beats_per_row := 3;
-				elsif(trans_size = 1)then
-					beats_per_row := 9;
-				end if;
+				--elsif(trans_size = 1)then
+				--	beats_per_row := 9;
+				--end if;
 			else 
 				address := r.dstaddr; 
-				oldaddr := r.dstaddr(9 downto 0); 
-				oldsize := r.dstinc;
+				--oldaddr := r.dstaddr(9 downto 0); 
+				--oldsize := r.dstinc;
 			end if;
 			
-			ainc := decode(oldsize);
-			trans_size := conv_integer(ainc);
-			newaddr := oldaddr + ainc(3 downto 0);
-			
+			--ainc := decode(oldsize);
+			--ainc := "100";
+			--trans_size := conv_integer(ainc);
+			--newaddr := oldaddr + ainc(3 downto 0);
+			trans_size := 4;
 			
 			
 			-- transfer size
@@ -377,7 +378,7 @@ begin
 				
 				
 				if dst_mcomp = '1' then
-					-- write to mcomp, we need to write rfactor
+					-- write to mcomp, we need to write mcomp_r
 					if r.dstate = write_r then 
 						v.dstate  := write_mode;
 						--start := '0';
@@ -417,12 +418,12 @@ begin
 							-- mcomp
 							v.srcaddr := mcomp_data;
 							v.src_stride := (others=>'0');
-							v.srcinc := "10";
+							--v.srcinc := "10";
 							
 							-- ram
 							v.dstaddr := r.idstaddr;
 							v.dst_stride := r.idst_stride;
-							v.dstinc := r.idstinc;
+							--v.dstinc := r.idstinc;
 							
 							v.src_mcomp := '1';
 							--v.len := newlen; 
@@ -451,16 +452,29 @@ begin
 		
 		-- AHB write data fetch
 		if(r.write_valid = '1')then
-			case r.write_addr(5 downto 2) is
-				when "0000" => -- 0x00
+			case r.write_addr(3 downto 2) is
+				when "00" => -- 0x00
 					v.srcaddr := ahbsi.hwdata;
-				when "0001" => -- 0x04
+				when "01" => -- 0x04
 					v.idstaddr := ahbsi.hwdata;
-				when "0010" => -- 0x08
+				when "10" => -- 0x08, options
+										--v.offset := ahbsi.hwdata(31 downto 30);
+					--v.src_stride := "00" & ahbsi.hwdata(29 downto 20);	-- 10 bits
+					--v.src_width := ahbsi.hwdata(19 downto 16);	-- 4 bits
+					--v.idst_stride := ahbsi.hwdata(15 downto 4);	-- 12 bits
+					--v.idst_width := ahbsi.hwdata(3 downto 0);	-- 4 bits
+					v.offset := ahbsi.hwdata(31 downto 30);
+					v.src_stride := ahbsi.hwdata(29 downto 20);	-- 10 bits
+					v.idst_stride := ahbsi.hwdata(19 downto 10);	-- 10 bits
+					v.mcomp_mode := ahbsi.hwdata(9 downto 8); -- mocmp mode
+					v.mcomp_r := ahbsi.hwdata(7 downto 0);		-- r factor
+					
+				when "11" => -- 0x0C, action
 					--v.len := ahbsi.hwdata(15 downto 0);
-					v.srcinc := ahbsi.hwdata(17 downto 16);
-					v.idstinc := ahbsi.hwdata(19 downto 18);
-					v.enable := ahbsi.hwdata(20);
+					--v.srcinc := ahbsi.hwdata(17 downto 16);
+					--v.idstinc := ahbsi.hwdata(19 downto 18);
+					--v.enable := ahbsi.hwdata(20);
+					v.enable := ahbsi.hwdata(0);
 					if v.enable = '1' then
 						v.src_mcomp := '0';
 						v.dstate := readc;
@@ -469,23 +483,17 @@ begin
 						-- to mcomp
 						v.dstaddr := mcomp_data;
 						v.dst_stride := (others=>'0');
-						v.dstinc := "10" ;
+						--v.dstinc := "10" ;
 					end if;
-				when "0011" => -- 0x0C
-					v.offset := ahbsi.hwdata(31 downto 30);
-					v.src_stride := "00" & ahbsi.hwdata(29 downto 20);	-- 10 bits
-					v.src_width := ahbsi.hwdata(19 downto 16);	-- 4 bits
-					v.idst_stride := ahbsi.hwdata(15 downto 4);	-- 12 bits
-					v.idst_width := ahbsi.hwdata(3 downto 0);	-- 4 bits
 				-- when "0100" => -- 0x10
 					-- v.src_width := ahbsi.hwdata(3 downto 0);
 				-- when "0101" => -- 0x14
 					-- v.dst_stride := ahbsi.hwdata;
 				-- when "0110" => -- 0x18
 					-- v.dst_width := ahbsi.hwdata(3 downto 0);
-				when "0111" => -- 0x1C
-					v.rfactor := "00" & ahbsi.hwdata(29 downto 0);		-- r factor
-					v.mcomp_mode := ahbsi.hwdata(31 downto 30); -- mocmp mode
+				-- when "0111" => -- 0x1C
+					-- v.mcomp_r := "00" & ahbsi.hwdata(29 downto 0);		-- r factor
+					-- v.mcomp_mode := ahbsi.hwdata(31 downto 30); -- mocmp mode
 				when others => null;
 			end case;
 		end if;
@@ -504,7 +512,7 @@ begin
 			if r.dstate = writec then
 				dmai.Data <= r.data(r.cnt);
 			elsif r.dstate = write_r then
-				dmai.Data <= r.rfactor;
+				dmai.Data <= (31 downto 8=>'0') & r.mcomp_r;
 			elsif r.dstate = write_mode then
 				dmai.Data <= (31 downto 2 => '0') & r.mcomp_mode;
 			end if;
@@ -534,9 +542,10 @@ begin
 					ahbso.hrdata  <= r.srcaddr;
 				when "01" => 
 					ahbso.hrdata  <= r.dstaddr;
-				when "10" => 
+				when "11" => 
 					--ahbso.hrdata <= (31 downto 21 => '0') & r.enable & r.srcinc & r.dstinc & r.len;
-					ahbso.hrdata <= (31 downto 21 => '0') & r.enable & r.srcinc & r.dstinc & (15 downto 0 => '0');
+					--ahbso.hrdata <= (31 downto 21 => '0') & r.enable & r.srcinc & r.dstinc & (15 downto 0 => '0');
+					ahbso.hrdata <= (31 downto 1 => '0') & r.enable;
 				when others => 
 					ahbso.hrdata  <= (others => '0');
 				end case;

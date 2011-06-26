@@ -117,15 +117,13 @@ package video_acc is
 		);
 	end component;
 	
-	component dmatest is
+	component mcomp_dma is
 	  generic (
 		slvidx  : integer := 0;
 		ahbaddr : integer := 0;
 		addrmsk : integer := 16#fff#;
 		verid   : integer := 0;
 		irq_no  : integer := 0;
-		
-		-- for dma
 		mstidx : integer := 0;
 		dbuf   : integer := 4
 	  );
@@ -135,8 +133,6 @@ package video_acc is
 		clk     : in  std_ulogic;
 		ahbsi   : in  ahb_slv_in_type;
 		ahbso   : out ahb_slv_out_type;
-		
-		-- for dma
 		ahbmi : in  ahb_mst_in_type;
 		ahbmo : out ahb_mst_out_type 
 	  );
