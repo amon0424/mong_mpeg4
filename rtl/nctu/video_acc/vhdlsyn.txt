@@ -3,3 +3,4 @@ mcomp.vhd
 idct.vhd
 idct2d.vhd
 bram.vhd
+mcomp_dma.vhd

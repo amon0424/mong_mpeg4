@@ -125,6 +125,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\dma_test.c"
+				>
+			</File>
+			<File
 				RelativePath="..\dual_idct2d_tb.c"
 				>
 			</File>

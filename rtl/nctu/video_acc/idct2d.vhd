@@ -10,6 +10,9 @@ use grlib.devices.all;
 library techmap;
 use techmap.gencomp.all;
 
+library nctu;
+use nctu.video_acc.all;
+
 entity idct2d is
 	generic (
 		ahbndx  : integer := 0;
@@ -73,21 +76,6 @@ architecture rtl of idct2d is
 	-----------------------------------------------------------------
 	-- BRAM
 	-----------------------------------------------------------------
-	component BRAM
-	port(
-		CLK1: in std_logic;
-		WE1: in std_logic;
-		Addr1: in std_logic_vector(5 downto 0);
-		Data_In1: in std_logic_vector(15 downto 0);
-		Data_Out1: out std_logic_vector(15 downto 0);
-		CLK2: in std_logic;
-		WE2: in std_logic;
-		Addr2: in std_logic_vector(5 downto 0);
-		Data_In2: in std_logic_vector(15 downto 0);
-		Data_Out2: out std_logic_vector(15 downto 0)
-	);
-	end component;
-
 	signal iram_addr1: std_logic_vector(5 downto 0);
 	signal iram_addr2: std_logic_vector(5 downto 0);
 	signal iram_we1	: std_logic;
@@ -121,7 +109,11 @@ begin
 	ahbso.hconfig <= hconfig;
 	ahbso.hindex  <= ahbndx;
 
-	iram : BRAM
+	iram : BRAM generic map(
+		size => 64,
+		addrlen  => 6,
+		datalen => 16
+	)
 	port map (
 		CLK1		=> clk,
 		CLK2		=> clk,
@@ -135,7 +127,11 @@ begin
 		Data_Out2	=> iram_do2
 	);
 	
-	tram : BRAM
+	tram : BRAM generic map(
+		size => 64,
+		addrlen  => 6,
+		datalen => 16
+	)
 	port map (
 		CLK1		=> clk,
 		CLK2		=> clk,

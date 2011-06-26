@@ -177,7 +177,7 @@ constant blength : integer := 12;
 constant fifodepth : integer := 8;
 constant maxahbm : integer := CFG_NCPU+CFG_AHB_UART+CFG_GRETH+
 	CFG_AHB_JTAG+CFG_SPW_NUM*CFG_SPW_EN+CFG_GRUSB_DCL+CFG_SVGA_ENABLE+
-	CFG_ATA+CFG_GRUSBDC;
+	CFG_ATA+CFG_GRUSBDC+1;
 
 signal vcc, gnd   : std_logic_vector(4 downto 0);
 signal memi  : memory_in_type;
@@ -633,23 +633,40 @@ begin
 ---  CS, NCTU, HW/SW Codesign -----------------------------------------
 -----------------------------------------------------------------------
 
-    -- my_mcomp : mcomp generic map (ahbndx => 6,
-                                  -- ahbaddr => 16#B00#,
-                                  -- verid => 1,
-                                  -- irq_no => 14)
-    -- port map (rstn, clkm, ahbsi, ahbso(6));
-
-    my_idct2d : idct2d generic map (ahbndx => 7,
-                                  ahbaddr => 16#B01#,
-                                  verid => 1,
-                                  irq_no => 15)
-    port map (rstn, clkm, ahbsi, ahbso(7));
-	
-	 my_idct2d_2 : idct2d generic map (ahbndx => 6,
-                                  ahbaddr => 16#B02#,
+    my_mcomp : mcomp generic map (ahbndx => 4,
+                                  ahbaddr => 16#B00#,
                                   verid => 1,
                                   irq_no => 14)
+    port map (rstn, clkm, ahbsi, ahbso(4));
+	
+	
+	dma0 : mcomp_dma generic map (
+				slvidx => 5,
+				ahbaddr => 16#B03#,
+				verid => 1,
+				irq_no => 15,
+				mstidx => CFG_NCPU+CFG_AHB_UART+CFG_GRETH+CFG_AHB_JTAG+
+                       CFG_SVGA_ENABLE+CFG_SPW_NUM*CFG_SPW_EN+
+                       CFG_GRUSB_DCL+CFG_GRUSBDC+CFG_ATA,
+				dbuf => 27)
+	port map (rstn, clkm, ahbsi, ahbso(5), ahbmi, 
+		ahbmo(CFG_NCPU+CFG_AHB_UART+CFG_GRETH+CFG_AHB_JTAG+
+			   CFG_SVGA_ENABLE+CFG_SPW_NUM*CFG_SPW_EN+
+			   CFG_GRUSB_DCL+CFG_GRUSBDC+CFG_ATA));
+			   
+		
+	my_idct2d_1 : idct2d generic map (ahbndx => 6,
+                                  ahbaddr => 16#B01#,
+                                  verid => 1,
+                                  irq_no => 16)
     port map (rstn, clkm, ahbsi, ahbso(6));
+
+    my_idct2d_2 : idct2d generic map (ahbndx => 7,
+                                  ahbaddr => 16#B02#,
+                                  verid => 1,
+                                  irq_no => 17)
+    port map (rstn, clkm, ahbsi, ahbso(7));
+
 
 -----------------------------------------------------------------------
 ---  Multi-core CAN ---------------------------------------------------

@@ -3,23 +3,28 @@ use IEEE.std_logic_1164.all;
 use IEEE.numeric_std.all;
 
 entity BRAM is
+	generic (
+		size : integer := 64;
+		addrlen : integer := 32;
+		datalen : integer := 32
+	);
 	port(
 		CLK1: in std_logic;
 		WE1: in std_logic;
-		Addr1: in std_logic_vector(5 downto 0);
-		Data_In1: in std_logic_vector(15 downto 0);
-		Data_Out1: out std_logic_vector(15 downto 0);
+		Addr1: in std_logic_vector(addrlen-1 downto 0);
+		Data_In1: in std_logic_vector(datalen-1 downto 0);
+		Data_Out1: out std_logic_vector(datalen-1 downto 0);
 		
 		CLK2: in std_logic;
 		WE2: in std_logic;
-		Addr2: in std_logic_vector(5 downto 0);
-		Data_In2: in std_logic_vector(15 downto 0);
-		Data_Out2: out std_logic_vector(15 downto 0)
+		Addr2: in std_logic_vector(addrlen-1 downto 0);
+		Data_In2: in std_logic_vector(datalen-1 downto 0);
+		Data_Out2: out std_logic_vector(datalen-1 downto 0)
 	);
 end BRAM;
 
 architecture Behavioral of BRAM is
-	type RAM is array (0 to 63) of std_logic_vector(15 downto 0);
+	type RAM is array (0 to size-1) of std_logic_vector(datalen-1 downto 0);
 	shared variable DataMEM: RAM; -- no initial values
 begin
 	process(CLK1)
