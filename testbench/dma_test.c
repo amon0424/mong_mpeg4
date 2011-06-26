@@ -121,13 +121,10 @@ main(int argc, char **argv)
 	*dma_srcaddr = (unsigned int)&(block1[1]);
 	//*dma_dstaddr = (unsigned int)&block2[0];
 	*dma_dstaddr = dst;
-	//*dma_address_options = (1 << 30) | (stride << 20) | (9 << 16) | (stride << 4) | 8;
 	//                     offset      src stride       dst stride       mode     r
 	*dma_address_options = (1 << 30) | (stride << 20) | (stride << 10) | (2<<8) | 2;
-	//*dma_mcomp_args = (2 << 30) | 2;
-	//*dma_action = (1 << 20) | (2 << 18) | (2 << 16) | ( 2 );
 	*dma_action = 1;
-	//while((*dma_action) >> 20);
+
 	while(*dma_action);
 
 	// halfpel8x8_h
@@ -135,12 +132,8 @@ main(int argc, char **argv)
 	*dma_dstaddr = (unsigned int)block3;
 	//                     offset      src stride       dst stride       mode     r
 	*dma_address_options = (0 << 30) | (stride << 20) | (stride << 10) | (1<<8) | 1;
-	//*dma_address_options = (stride << 20) | (9 << 16) | (stride << 4) | 8;
-	//*dma_mcomp_args = (0 << 30) | 1;
-	//*dma_action = (1 << 20) | (2 << 18) | (2 << 16) | ( 2 );
 	
 	*dma_action = 1;
-	//while((*dma_action) >> 20);
 	while(*dma_action);
 
 	// halfpel8x8_v
@@ -148,12 +141,8 @@ main(int argc, char **argv)
 	*dma_dstaddr = (unsigned int)block4;
 	//                     offset      src stride       dst stride       mode     r
 	*dma_address_options = (0 << 30) | (stride << 20) | (stride << 10) | (0<<8) | 1;
-	//*dma_address_options = (stride << 20) | (9 << 16) | (stride << 4) | 8;
-	//*dma_mcomp_args = (1 << 30) | 1;
-	//*dma_action = (1 << 20) | (2 << 18) | (2 << 16) | ( 2 );
-	
+
 	*dma_action = 1;
-	//while((*dma_action) >> 20);
 	while(*dma_action);
 
 	// print results
