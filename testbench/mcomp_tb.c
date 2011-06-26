@@ -1,16 +1,11 @@
 #include <stdio.h>
 #include <string.h>
-// 80 pixels 0xb0000000 ~ 0xb0000140
 
 #define USE_HW_MC1 0
 #define USE_HW_MC 1
 
 #if USE_HW_MC
 volatile int *pixels_base = (int *) 0xb0000000;
-//volatile int *reg_a  = (int *) 0xb0000000;
-//volatile int *reg_b  = (int *) 0xb0000004;
-//volatile int *reg_c  = (int *) 0xb0000008;
-//volatile int *reg_d  = (int *) 0xb000000c;
 volatile int *reg_r  = (int *) 0xb000006c;
 volatile int *reg_mode = (int *) 0xb0000070;
 #elif USE_HW_MC1
@@ -32,7 +27,7 @@ unsigned char src[32*9] =   {0,1,2,3,4,5,6,7,8,9,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 								0,49,50,51,52,53,54,55,56,57,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 								0,57,58,59,60,61,62,63,64,65,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 								0,65,66,67,68,69,70,71,72,73,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-int dst[32*9] = {0};
+unsigned char dst[32*9] = {0};
 int r[3] = {1,1,2};
 int stride = 32;
 
@@ -43,6 +38,7 @@ main(int argc, char **argv)
 	volatile unsigned int* ppixels;
 	unsigned int val;
 
+	//m=2;
 	for(m=0; m<3;m++)
 	{
 		// write
@@ -58,7 +54,7 @@ main(int argc, char **argv)
 			val |= src[idx+4] << 24 | (src[idx+5] << 16) | (src[idx+6] << 8) | (src[idx+7]);
 			*(ppixels++) = val;
 
-			val=src[idx+8];
+			val=src[idx+8] << 24;
 			*(ppixels++) = val;
 		}
 
@@ -70,21 +66,8 @@ main(int argc, char **argv)
 		idx=0;
 		for (row = 0; row < (stride << 3); idx = (row += stride))
 		{
-			//val = *(ppixels++);
-			//dst[idx] = (val >> 24) & 0xFF;
-			//dst[idx+1] = (val >> 8) & 0xFF;
-			//dst[idx+2] = (val >> 16) & 0xFF;
-			//dst[idx+3] = (val >> 24) & 0xFF;
-			*(dst+idx) = *(ppixels++);
-
-			//val = *(ppixels++);
-			//dst[idx+4] = val & 0xFF;
-			//dst[idx+5] = (val >> 8) & 0xFF;
-			//dst[idx+6] = (val >> 16) & 0xFF;
-			//dst[idx+7] = (val >> 24) & 0xFF;
-			*(dst+idx+4) = *(ppixels++);
-
-			ppixels++;
+			*((int*)(dst+idx)) = *(ppixels++);
+			*((int*)(dst+idx+4)) = *(ppixels++);
 		}
 
 		idx=0;
@@ -92,7 +75,7 @@ main(int argc, char **argv)
 		for (row = 0; row < (stride << 3); idx = (row += stride))
 		{
 			for(i=0; i<8; i++, idx++)
-				printf("%d,", dst[idx]);
+				printf("%#x,", dst[idx]);
 			printf("\n");
 		}
 	}
