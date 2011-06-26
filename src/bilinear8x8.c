@@ -26,9 +26,8 @@ volatile int *mcomp_data  = (int*) 0xb0000000;
 #if USE_HW_MC_FINAL_DMA
 volatile long *dma_srcaddr  = (long *) 0xb0300000;
 volatile long *dma_dstaddr  = (long *) 0xb0300004;
-volatile unsigned long *dma_action  = (long *) 0xb0300008;
-volatile long *dma_address_options  = (long *) 0xb030000C;
-volatile long *dma_mcomp_args  = (long *) 0xb030001C;
+volatile long *dma_params  = (long *) 0xb0300008;
+volatile long *dma_action  = (long *) 0xb030000C;
 #elif USE_HW_MC_LAB3_ORI
 volatile int *reg_a  = (int *) 0xb0000000;
 volatile int *reg_b  = (int *) 0xb0000004;
@@ -50,11 +49,11 @@ halfpel8x8_h(uint8 * dst, uint8 * src, xint stride, xint rounding)
 #if USE_HW_MC_FINAL_DMA
 	*dma_srcaddr = (unsigned int)src;
 	*dma_dstaddr = (unsigned int)dst;
-	*dma_address_options = ((unsigned long)src)<<30 |(stride << 20) | (9 << 16) | (stride << 4) | 8;
-	*dma_mcomp_args = (0 << 30) | rounding;
-	*dma_action = (1 << 20) | (2 << 18) | (2 << 16) | ( 2 );
+	//                     offset                      src stride       dst stride       mode     r
+	*dma_params = ((unsigned long)src)<<30  | (stride << 20) | (stride << 10) | (0<<8) | rounding;
+	*dma_action = 1;
 	
-	while((*dma_action) >> 20);
+	while(*dma_action);
 #elif USE_HW_MC_FINAL
 	xint    row, idx;
 	volatile int* ppixels = mcomp_data;
@@ -169,11 +168,11 @@ halfpel8x8_v(uint8 * dst, uint8 * src, xint stride, xint rounding)
 #if USE_HW_MC_FINAL_DMA 
 	*dma_srcaddr = (unsigned int)src;
 	*dma_dstaddr = (unsigned int)dst;
-	*dma_address_options = ((unsigned long)src)<<30 | (stride << 20) | (9 << 16) | (stride << 4) | 8;
-	*dma_mcomp_args = (1 << 30) | rounding;
-	*dma_action = (1 << 20) | (2 << 18) | (2 << 16) | ( 2 );
+	//                     offset                      src stride       dst stride       mode     r
+	*dma_params = ((unsigned long)src)<<30  | (stride << 20) | (stride << 10) | (1<<8) | rounding;
+	*dma_action = 1;
 	
-	while((*dma_action) >> 20);
+	while(*dma_action);
 #elif USE_HW_MC_FINAL
 	xint row, idx;
 	volatile int* ppixels = mcomp_data;
@@ -270,11 +269,11 @@ halfpel8x8_hv(uint8 * dst, uint8 * src, xint stride, xint rounding)
 #if USE_HW_MC_FINAL_DMA
 	*dma_srcaddr = (unsigned int)src;
 	*dma_dstaddr = (unsigned int)dst;
-	*dma_address_options = ((unsigned long)src)<<30 | (stride << 20) | (9 << 16) | (stride << 4) | 8;
-	*dma_mcomp_args = (2 << 30) | rounding;
-	*dma_action = (1 << 20) | (2 << 18) | (2 << 16) | ( 2 );
+	//                     offset                      src stride       dst stride       mode     r
+	*dma_params = ((unsigned long)src)<<30  | (stride << 20) | (stride << 10) | (2<<8) | rounding;
+	*dma_action = 1;
 	
-	while((*dma_action) >> 20);
+	while(*dma_action);
 #elif USE_HW_MC_FINAL
 	xint    row, idx;
 	volatile int* ppixels = mcomp_data;
